@@ -1,0 +1,2472 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SimbaDM — Кинематограф в каждом кадре</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --night: #040f0f;
+  --deep: #071413;
+  --surface: #0c1e1c;
+  --surface-light: #122b28;
+  --surface-hover: #16332f;
+  --glass: rgba(12, 30, 28, 0.92);
+  --sand: #d4a574;
+  --sand-light: #e8c39e;
+  --sand-dim: rgba(212, 165, 116, 0.12);
+  --sand-dim-hover: rgba(212, 165, 116, 0.2);
+  --mint: #5a9e8c;
+  --mint-glow: rgba(90, 158, 140, 0.25);
+  --text: #f0ece4;
+  --text-dim: #9e9a8e;
+  --text-faint: #5c5952;
+  --radius: 28px;
+  --radius-sm: 16px;
+  --radius-asym: 28px 6px 28px 6px;
+  --shadow: 0 8px 32px rgba(0,0,0,0.45);
+  --shadow-gold: 0 4px 24px rgba(212, 165, 116, 0.18);
+  --shadow-lg: 0 20px 60px rgba(0,0,0,0.5);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--night);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+.ambient {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 30%, rgba(90,158,140,0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 70%, rgba(212,165,116,0.05) 0%, transparent 50%);
+}
+.ambient::after {
+  content:''; position:absolute; inset:0;
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  opacity: 0.4;
+}
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--night); }
+::-webkit-scrollbar-thumb { background: var(--surface-light); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--sand); }
+h1, h2, h3, .brand { font-family: 'Playfair Display', serif; }
+.app { position: relative; z-index: 1; max-width: 1440px; margin: 0 auto; padding: 0 32px; }
+@media(max-width:768px){ .app { padding: 0 16px; } }
+
+/* ===== HEADER ===== */
+.header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  backdrop-filter: blur(24px) saturate(1.3);
+  background: linear-gradient(180deg, rgba(4,15,15,0.95) 0%, rgba(4,15,15,0.7) 100%);
+  border-bottom: 1px solid rgba(212,165,116,0.08);
+}
+.header-inner {
+  max-width: 1440px; margin: 0 auto; padding: 0 32px;
+  height: 76px; display: flex; align-items: center; justify-content: space-between;
+}
+.brand {
+  display: flex; align-items: center; gap: 14px; cursor: pointer; text-decoration: none;
+}
+.brand-mark {
+  width: 44px; height: 44px; border-radius: var(--radius-asym);
+  background: linear-gradient(135deg, var(--sand) 0%, #b88a5a 100%);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--shadow-gold); transition: transform 0.4s var(--ease);
+}
+.brand:hover .brand-mark { transform: rotate(-6deg) scale(1.08); }
+.brand-mark svg { width: 22px; height: 22px; }
+.brand-text { display: flex; flex-direction: column; }
+.brand-title { font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; line-height: 1; }
+.brand-sub { font-size: 10px; color: var(--text-faint); font-family: 'Inter',sans-serif; letter-spacing: 3px; text-transform: uppercase; margin-top: 4px; font-weight: 500; }
+
+.nav { display: flex; align-items: center; gap: 6px; background: var(--surface); padding: 6px; border-radius: 100px; border: 1px solid rgba(212,165,116,0.1); }
+.nav-btn {
+  position: relative; padding: 10px 20px; border-radius: 100px; border: none; background: transparent;
+  color: var(--text-dim); font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit;
+  transition: all 0.3s var(--ease); display: flex; align-items: center; gap: 8px;
+}
+.nav-btn:hover { color: var(--text); }
+.nav-btn.active { color: var(--night); background: linear-gradient(135deg, var(--sand), #c49360); box-shadow: var(--shadow-gold); font-weight: 600; }
+.nav-btn svg { width: 16px; height: 16px; }
+
+.actions { display: flex; align-items: center; gap: 14px; }
+.search-wrap { position: relative; }
+.search-wrap input {
+  background: var(--surface); border: 1px solid rgba(212,165,116,0.15);
+  border-radius: 100px; padding: 10px 14px 10px 38px; color: var(--text);
+  font-size: 13px; width: 220px; outline: none; transition: all 0.3s var(--ease); font-family: inherit;
+}
+.search-wrap input:focus { width: 320px; border-color: var(--sand); background: var(--surface-light); box-shadow: 0 0 0 4px var(--sand-dim); }
+.search-wrap input::placeholder { color: var(--text-faint); }
+.search-wrap svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--text-faint); pointer-events: none; }
+
+/* ===== SEARCH DROPDOWN REDESIGN ===== */
+.search-dropdown {
+  position: absolute; top: calc(100% + 14px); right: 0; width: 100%; min-width: 220px; max-width: 420px;
+  background: var(--glass); backdrop-filter: blur(32px) saturate(1.4);
+  border: 1px solid rgba(212,165,116,0.18); border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg), 0 0 60px rgba(0,0,0,0.4); overflow: hidden; display: none; z-index: 150;
+}
+.search-dropdown.show { display: block; animation: fadeIn 0.25s var(--ease); }
+.search-tabs { display: flex; gap: 8px; padding: 14px 16px 0; border-bottom: 1px solid rgba(212,165,116,0.08); }
+.search-tab {
+  padding: 7px 16px; border-radius: 100px; border: none; background: transparent;
+  color: var(--text-dim); font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit;
+  transition: all 0.2s;
+}
+.search-tab.active { background: linear-gradient(135deg, var(--sand), #c49360); color: var(--night); box-shadow: var(--shadow-gold); }
+.search-tab:hover:not(.active) { color: var(--text); background: var(--surface-light); }
+.search-list { max-height: 360px; overflow-y: auto; padding: 10px; }
+.search-item {
+  display: grid; grid-template-columns: 52px 1fr; gap: 14px; padding: 12px; border-radius: 14px;
+  cursor: pointer; transition: all 0.25s var(--ease); align-items: center;
+  border: 1px solid transparent;
+}
+.search-item:hover { background: var(--surface-hover); border-color: rgba(212,165,116,0.12); transform: translateX(4px); }
+.search-item img { width: 52px; height: 72px; border-radius: 10px; object-fit: cover; background: var(--deep); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+.search-item-info { display: flex; flex-direction: column; gap: 4px; }
+.search-item-title { font-size: 15px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.search-item-meta { font-size: 12px; color: var(--text-faint); display: flex; gap: 10px; align-items: center; }
+.search-item-meta .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--text-faint); }
+.search-item-country { color: var(--sand); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+.search-item-desc {
+  font-size: 12px; color: var(--text-dim); line-height: 1.5;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  margin-top: 2px;
+}
+.search-footer {
+  padding: 14px; text-align: center; font-size: 13px; color: var(--sand);
+  border-top: 1px solid rgba(212,165,116,0.1); cursor: pointer; font-weight: 600;
+  transition: background 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.search-footer:hover { background: var(--sand-dim); }
+.search-footer svg { width: 16px; height: 16px; }
+.search-empty {
+  padding: 32px 20px; text-align: center; color: var(--text-faint); font-size: 13px;
+}
+
+.btn {
+  padding: 10px 22px; border-radius: 100px; border: none; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all 0.3s var(--ease); font-family: inherit; display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
+}
+.btn-gold { background: linear-gradient(135deg, var(--sand) 0%, #c49360 100%); color: var(--night); box-shadow: var(--shadow-gold); }
+.btn-gold:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(212,165,116,0.3); }
+.btn-ghost { background: transparent; color: var(--text-dim); border: 1px solid rgba(212,165,116,0.15); }
+.btn-ghost:hover { border-color: var(--sand); color: var(--sand); background: var(--sand-dim); }
+.btn-danger { background: linear-gradient(135deg, #c0392b, #962d22); color: #fff; }
+.btn-danger:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(192,57,43,0.3); }
+.btn-sm { padding: 6px 14px; font-size: 12px; }
+
+.avatar {
+  width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, var(--mint), #3d7a6b);
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; cursor: pointer;
+  border: 2px solid rgba(90,158,140,0.3); transition: all 0.3s var(--ease); color: var(--night);
+  overflow: hidden; position: relative;
+}
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.avatar:hover { transform: scale(1.1); border-color: var(--mint); box-shadow: 0 0 20px var(--mint-glow); }
+
+/* ===== MAIN ===== */
+.main { padding-top: 76px; }
+.section { padding: 48px 0; }
+
+/* ===== HERO ===== */
+.hero { position: relative; padding: 80px 0 60px; overflow: hidden; }
+.hero-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 60px; align-items: center; }
+.hero-label {
+  display: inline-flex; align-items: center; gap: 10px;
+  background: var(--sand-dim); border: 1px solid rgba(212,165,116,0.18);
+  padding: 8px 18px; border-radius: 100px; font-size: 12px; font-weight: 600;
+  color: var(--sand); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 28px;
+}
+.hero-label svg { width: 14px; height: 14px; }
+.hero h1 { font-size: clamp(36px, 5vw, 64px); font-weight: 700; line-height: 1.1; margin-bottom: 20px; letter-spacing: -1px; }
+.hero h1 em { color: var(--sand); font-style: normal; }
+.hero p { font-size: 16px; color: var(--text-dim); line-height: 1.7; max-width: 480px; margin-bottom: 32px; }
+.hero-btns { display: flex; gap: 14px; flex-wrap: wrap; }
+.hero-stats { display: flex; gap: 40px; margin-top: 48px; }
+.hero-stat h4 { font-family: 'Playfair Display', serif; font-size: 32px; color: var(--sand); font-weight: 700; }
+.hero-stat span { font-size: 12px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 1px; }
+
+.hero-visual { position: relative; height: 420px; }
+.hero-poster-stack { position: relative; width: 100%; height: 100%; }
+.hposter {
+  position: absolute; border-radius: var(--radius); overflow: hidden;
+  box-shadow: var(--shadow); transition: all 0.6s var(--ease); cursor: pointer;
+  border: 1px solid rgba(212,165,116,0.1);
+}
+.hposter img { width: 100%; height: 100%; object-fit: cover; }
+.hposter:nth-child(1) { width: 220px; height: 320px; left: 10%; top: 5%; z-index: 3; transform: rotate(-6deg); }
+.hposter:nth-child(2) { width: 200px; height: 290px; left: 45%; top: 15%; z-index: 2; transform: rotate(4deg); opacity: 0.85; }
+.hposter:nth-child(3) { width: 180px; height: 260px; left: 25%; top: 30%; z-index: 1; transform: rotate(-2deg); opacity: 0.7; }
+.hposter:hover { transform: rotate(0deg) scale(1.05); z-index: 10; opacity: 1; box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 40px var(--mint-glow); }
+
+/* ===== SECTION HEADER ===== */
+.sec-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 28px; }
+.sec-head h2 { font-size: 28px; font-weight: 700; display: flex; align-items: center; gap: 12px; }
+.sec-head h2::before {
+  content: ''; width: 6px; height: 28px; background: linear-gradient(180deg, var(--sand), var(--mint));
+  border-radius: 3px; display: inline-block;
+}
+.sec-link { color: var(--sand); font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: gap 0.3s; }
+.sec-link:hover { gap: 10px; }
+.sec-link svg { width: 14px; height: 14px; }
+
+/* ===== PILLS ===== */
+.pills { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 32px; }
+.pill {
+  padding: 10px 20px; border-radius: 100px; border: 1px solid rgba(212,165,116,0.12);
+  background: var(--surface); color: var(--text-dim); font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: all 0.3s var(--ease); font-family: inherit;
+}
+.pill:hover { border-color: var(--sand); color: var(--text); background: var(--surface-light); }
+.pill.active { background: linear-gradient(135deg, var(--sand), #c49360); color: var(--night); border-color: transparent; box-shadow: var(--shadow-gold); font-weight: 600; }
+
+/* ===== FILTERS ===== */
+.filters-bar {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px;
+  background: var(--surface); border-radius: var(--radius-sm); padding: 20px;
+  border: 1px solid rgba(212,165,116,0.08); margin-bottom: 32px;
+}
+.filter-group { display: flex; flex-direction: column; gap: 6px; }
+.filter-group label { font-size: 11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+.filter-group select, .filter-group input {
+  background: var(--deep); border: 1px solid rgba(212,165,116,0.12); border-radius: 10px;
+  padding: 10px 12px; color: var(--text); font-size: 13px; outline: none; font-family: inherit;
+}
+.filter-group select:focus, .filter-group input:focus { border-color: var(--sand); }
+.filter-actions { display: flex; align-items: flex-end; }
+
+/* ===== MOVIE GRID ===== */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 24px; }
+.card {
+  background: var(--surface); border-radius: var(--radius-asym); overflow: hidden;
+  cursor: pointer; transition: all 0.4s var(--ease); border: 1px solid rgba(212,165,116,0.06);
+  position: relative;
+}
+.card:hover {
+  transform: translateY(-8px) rotate(0.5deg);
+  box-shadow: var(--shadow), 0 0 30px rgba(212,165,116,0.08);
+  border-color: rgba(212,165,116,0.2);
+}
+.card-img { position: relative; aspect-ratio: 2/3; overflow: hidden; background: var(--deep); }
+.card-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.6s var(--ease); }
+.card:hover .card-img img { transform: scale(1.1); }
+.card-play {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: rgba(4,15,15,0.5); opacity: 0; transition: opacity 0.4s;
+}
+.card:hover .card-play { opacity: 1; }
+.card-play-btn {
+  width: 56px; height: 56px; border-radius: 50%; background: var(--sand);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 20px rgba(212,165,116,0.4); transform: scale(0.8); transition: transform 0.4s var(--ease);
+}
+.card:hover .card-play-btn { transform: scale(1); }
+.card-play-btn svg { width: 20px; height: 20px; margin-left: 3px; }
+.card-rating {
+  position: absolute; top: 12px; right: 12px;
+  background: rgba(4,15,15,0.85); backdrop-filter: blur(8px);
+  padding: 5px 10px; border-radius: 8px; font-size: 12px; font-weight: 700;
+  color: var(--sand); border: 1px solid rgba(212,165,116,0.2); display: flex; align-items: center; gap: 4px;
+}
+.card-rating svg { width: 12px; height: 12px; }
+.card-body { padding: 18px; }
+.card-title { font-size: 15px; font-weight: 600; margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-meta { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--text-faint); }
+.card-meta span { display: flex; align-items: center; gap: 4px; }
+.card-meta svg { width: 13px; height: 13px; }
+.card-tag {
+  display: inline-block; margin-top: 10px; padding: 4px 12px; border-radius: 6px;
+  background: var(--sand-dim); color: var(--sand); font-size: 11px; font-weight: 600; border: 1px solid rgba(212,165,116,0.15);
+}
+
+/* ===== DETAIL PAGE ===== */
+.detail-hero {
+  position: relative; min-height: 70vh; display: flex; align-items: flex-end;
+  background: linear-gradient(180deg, rgba(4,15,15,0.3) 0%, var(--night) 100%), var(--deep);
+  border-radius: 0 0 var(--radius) var(--radius); overflow: hidden; margin-bottom: 40px;
+}
+.detail-hero-bg { position: absolute; inset: 0; opacity: 0.35; background-size: cover; background-position: center; }
+.detail-hero::after { content: ''; position: absolute; inset: 0; background: linear-gradient(0deg, var(--night) 0%, transparent 60%); }
+.detail-content { position: relative; z-index: 2; padding: 60px 0 40px; display: grid; grid-template-columns: 220px 1fr; gap: 40px; align-items: end; }
+.detail-poster { border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); border: 1px solid rgba(212,165,116,0.15); aspect-ratio: 2/3; }
+.detail-poster img { width: 100%; height: 100%; object-fit: cover; }
+.detail-info h1 { font-size: 42px; font-weight: 700; margin-bottom: 16px; line-height: 1.1; }
+.detail-meta { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
+.detail-meta span { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text-dim); }
+.detail-meta .rating { color: var(--sand); font-weight: 700; }
+.detail-meta svg { width: 16px; height: 16px; }
+.detail-desc { color: var(--text-dim); line-height: 1.8; max-width: 600px; margin-bottom: 28px; font-size: 15px; }
+.detail-actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+
+/* Rating stars */
+.star-rating { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.star-rating .star {
+  width: 24px; height: 24px; cursor: pointer; transition: all 0.2s;
+  color: var(--text-faint); flex-shrink: 0;
+}
+.star-rating .star:hover { transform: scale(1.2); }
+.star-rating .star.filled { color: var(--sand); }
+.star-rating .star.user-filled { color: var(--sand); filter: drop-shadow(0 0 4px rgba(212,165,116,0.5)); }
+.rating-value { margin-left: 10px; font-size: 16px; color: var(--sand); font-weight: 700; font-family: 'Playfair Display', serif; }
+.rating-count { font-size: 12px; color: var(--text-faint); margin-left: 6px; }
+
+/* ===== PLAYER ===== */
+.player-wrap {
+  background: #000; border-radius: var(--radius-sm); overflow: hidden;
+  aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--surface-light); margin-bottom: 32px; position: relative;
+}
+.player-wrap video { width: 100%; height: 100%; object-fit: contain; }
+.player-placeholder {
+  display: flex; flex-direction: column; align-items: center; gap: 16px; color: var(--text-faint);
+}
+.player-placeholder svg { width: 64px; height: 64px; color: var(--sand); opacity: 0.5; }
+.player-placeholder p { font-size: 14px; }
+
+/* ===== INFO TABLE ===== */
+.info-table { background: var(--surface); border-radius: var(--radius-sm); border: 1px solid rgba(212,165,116,0.08); overflow: hidden; margin-bottom: 32px; }
+.info-row { display: grid; grid-template-columns: 160px 1fr; padding: 14px 20px; border-bottom: 1px solid rgba(212,165,116,0.05); align-items: start; }
+.info-row:last-child { border-bottom: none; }
+@media(max-width:768px){ .info-row { grid-template-columns: 100px 1fr; } }
+.info-label { font-size: 11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; padding-top: 2px; }
+.info-value { font-size: 14px; color: var(--text); line-height: 1.5; }
+.actor { display: inline-block; margin-right: 10px; color: var(--sand); cursor: pointer; font-size: 14px; padding: 2px 8px; border-radius: 6px; transition: background 0.2s; }
+.actor:hover { background: var(--sand-dim); text-decoration: none; }
+.more { color: var(--text-faint); cursor: pointer; font-size: 12px; margin-left: 4px; }
+.more:hover { color: var(--sand); }
+
+/* ===== PROS / CONS ===== */
+.pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 32px; }
+@media(max-width:768px){ .pros-cons { grid-template-columns: 1fr; } }
+.pros-box, .cons-box { background: var(--surface); border-radius: var(--radius-sm); padding: 24px; border: 1px solid rgba(212,165,116,0.08); }
+.pros-box h4, .cons-box h4 { font-size: 13px; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; }
+.pros-box h4 { color: var(--mint); }
+.cons-box h4 { color: #e74c3c; }
+.pros-box ul, .cons-box ul { list-style: none; }
+.pros-box li, .cons-box li { font-size: 14px; color: var(--text-dim); padding: 6px 0; padding-left: 20px; position: relative; }
+.pros-box li::before { content: '+'; position: absolute; left: 0; color: var(--mint); font-weight: 700; }
+.cons-box li::before { content: '−'; position: absolute; left: 0; color: #e74c3c; font-weight: 700; }
+
+/* ===== SCHEDULE ===== */
+.schedule-box { background: var(--surface); border-radius: var(--radius-sm); padding: 20px; border: 1px solid rgba(212,165,116,0.08); margin-bottom: 32px; }
+.schedule-box h4 { font-size: 13px; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--sand); font-weight: 700; }
+.schedule-item { font-size: 14px; color: var(--text-dim); }
+
+/* ===== RELATED ===== */
+.related-section { margin-bottom: 40px; }
+.related-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; }
+.related-card { background: var(--surface); border-radius: var(--radius-sm); overflow: hidden; cursor: pointer; transition: all 0.3s; border: 1px solid rgba(212,165,116,0.06); }
+.related-card:hover { transform: translateY(-4px); border-color: rgba(212,165,116,0.2); box-shadow: var(--shadow); }
+.related-card img { width: 100%; aspect-ratio: 2/3; object-fit: cover; display: block; }
+.rc-body { padding: 12px; }
+.rc-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rc-meta { font-size: 11px; color: var(--text-faint); }
+
+/* ===== COMMENTS ===== */
+.comments-section { margin-bottom: 40px; }
+.comments-section h3 { font-size: 22px; margin-bottom: 24px; font-family: 'Playfair Display', serif; }
+.comment-form {
+  background: var(--surface); border-radius: var(--radius-sm); padding: 24px;
+  border: 1px solid rgba(212,165,116,0.08); margin-bottom: 24px;
+}
+.comment-form-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.comment-form-header label { font-size: 13px; color: var(--text-dim); }
+.comment-form-header input[type="text"] {
+  background: var(--deep); border: 1px solid rgba(212,165,116,0.12); border-radius: 8px;
+  padding: 8px 12px; color: var(--text); font-size: 13px; outline: none; font-family: inherit; width: 200px;
+}
+.comment-form-header input:focus { border-color: var(--sand); }
+.guest-toggle {
+  display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-faint); cursor: pointer;
+}
+.guest-toggle input { accent-color: var(--sand); }
+.comment-form textarea {
+  width: 100%; background: var(--deep); border: 1px solid rgba(212,165,116,0.12); border-radius: 12px;
+  padding: 14px; color: var(--text); font-size: 14px; outline: none; font-family: inherit; resize: vertical; min-height: 80px; margin-bottom: 12px;
+}
+.comment-form textarea:focus { border-color: var(--sand); }
+.comment-actions { display: flex; justify-content: space-between; align-items: center; }
+.comment-actions span { font-size: 12px; color: var(--text-faint); }
+
+.comment {
+  background: var(--surface); border-radius: var(--radius-sm); padding: 20px;
+  border: 1px solid rgba(212,165,116,0.06); margin-bottom: 16px; transition: all 0.3s;
+}
+.comment:hover { border-color: rgba(212,165,116,0.12); }
+.comment-header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.comment-avatar {
+  width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, var(--sand), var(--mint));
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; color: var(--night); flex-shrink: 0; overflow: hidden;
+}
+.comment-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.comment-meta { display: flex; flex-direction: column; }
+.comment-name { font-size: 14px; font-weight: 600; color: var(--text); }
+.comment-name .guest-badge { font-size: 10px; color: var(--sand); background: var(--sand-dim); padding: 2px 6px; border-radius: 4px; margin-left: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+.comment-date { font-size: 11px; color: var(--text-faint); }
+.comment-text { font-size: 14px; color: var(--text-dim); line-height: 1.6; margin-bottom: 10px; }
+.comment-footer { display: flex; gap: 16px; }
+.comment-btn { font-size: 12px; color: var(--text-faint); cursor: pointer; transition: color 0.2s; background: none; border: none; font-family: inherit; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+.comment-btn:hover { color: var(--sand); }
+.comment-btn svg { width: 14px; height: 14px; }
+
+.replies { margin-left: 24px; margin-top: 12px; padding-left: 16px; border-left: 2px solid rgba(212,165,116,0.1); }
+.reply-form { margin-top: 12px; margin-bottom: 12px; }
+.reply-form textarea {
+  width: 100%; background: var(--deep); border: 1px solid rgba(212,165,116,0.12); border-radius: 10px;
+  padding: 10px 12px; color: var(--text); font-size: 13px; outline: none; font-family: inherit; resize: vertical; min-height: 60px; margin-bottom: 8px;
+}
+.reply-form textarea:focus { border-color: var(--sand); }
+
+/* ===== SEARCH RESULTS ===== */
+.search-results { display: flex; flex-direction: column; gap: 16px; }
+.search-card { display: grid; grid-template-columns: 120px 1fr; gap: 20px; background: var(--surface); border-radius: var(--radius-sm); padding: 16px; border: 1px solid rgba(212,165,116,0.08); cursor: pointer; transition: all 0.3s; }
+.search-card:hover { border-color: rgba(212,165,116,0.2); transform: translateX(4px); }
+.search-card img { width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: 8px; display: block; }
+.sc-body { display: flex; flex-direction: column; justify-content: center; }
+.sc-body h3 { font-size: 18px; margin-bottom: 8px; font-family: 'Playfair Display', serif; }
+.sc-meta { display: flex; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; align-items: center; }
+.sc-meta span { font-size: 12px; color: var(--text-faint); display: flex; align-items: center; gap: 4px; }
+.sc-country { color: var(--sand); font-weight: 600; }
+.sc-desc { font-size: 14px; color: var(--text-dim); line-height: 1.6; margin-bottom: 8px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.sc-episodes { font-size: 12px; color: var(--text-faint); }
+
+/* ===== MODALS ===== */
+.modal-bg {
+  position: fixed; inset: 0; z-index: 2000;
+  background: rgba(4, 15, 15, 0.88);
+  backdrop-filter: blur(16px) saturate(1.2);
+  display: none; align-items: center; justify-content: center;
+  padding: 20px; opacity: 0; transition: opacity 0.35s var(--ease);
+}
+.modal-bg.show { display: flex; opacity: 1; }
+.modal-box {
+  background: linear-gradient(145deg, var(--surface) 0%, var(--deep) 100%);
+  border-radius: var(--radius); border: 1px solid rgba(212,165,116,0.15);
+  max-width: 460px; width: 100%; padding: 0;
+  box-shadow: var(--shadow-lg), 0 0 60px rgba(212,165,116,0.08);
+  transform: translateY(30px) scale(0.96); transition: all 0.4s var(--ease);
+  overflow: hidden;
+}
+.modal-bg.show .modal-box { transform: translateY(0) scale(1); }
+.modal-header {
+  padding: 32px 32px 0; display: flex; justify-content: space-between; align-items: flex-start;
+}
+.modal-header h3 { font-size: 26px; font-weight: 700; color: var(--text); line-height: 1.2; }
+.modal-header p { font-size: 13px; color: var(--text-dim); margin-top: 6px; }
+.modal-close {
+  width: 36px; height: 36px; border-radius: 50%; border: 1px solid rgba(212,165,116,0.15);
+  background: var(--surface-light); color: var(--text-dim); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.3s; flex-shrink: 0;
+}
+.modal-close:hover { background: var(--sand-dim); color: var(--sand); border-color: var(--sand); transform: rotate(90deg); }
+.modal-close svg { width: 16px; height: 16px; }
+.modal-body { padding: 24px 32px 32px; }
+.modal-footer-btn {
+  width: 100%; padding: 14px; border-radius: 100px; border: none;
+  background: linear-gradient(135deg, var(--sand), #c49360);
+  color: var(--night); font-size: 14px; font-weight: 700; cursor: pointer;
+  font-family: inherit; transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px;
+  box-shadow: var(--shadow-gold);
+}
+.modal-footer-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(212,165,116,0.35); }
+.modal-divider {
+  display: flex; align-items: center; gap: 16px; margin: 20px 0;
+  color: var(--text-faint); font-size: 12px;
+}
+.modal-divider::before, .modal-divider::after { content: ''; flex: 1; height: 1px; background: rgba(212,165,116,0.12); }
+.modal-switch { text-align: center; font-size: 13px; color: var(--text-dim); margin-top: 20px; }
+.modal-switch a { color: var(--sand); cursor: pointer; font-weight: 600; transition: opacity 0.3s; }
+.modal-switch a:hover { opacity: 0.8; text-decoration: underline; }
+
+/* Confirm dialog */
+.confirm-bg {
+  position: fixed; inset: 0; z-index: 2500;
+  background: rgba(4,15,15,0.85);
+  backdrop-filter: blur(12px);
+  display: none; align-items: center; justify-content: center;
+  padding: 20px; opacity: 0; transition: opacity 0.3s;
+}
+.confirm-bg.show { display: flex; opacity: 1; }
+.confirm-box {
+  background: var(--surface);
+  border: 1px solid rgba(212,165,116,0.15);
+  border-radius: var(--radius);
+  padding: 28px;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: var(--shadow-lg);
+}
+.confirm-box h4 { font-size: 20px; margin-bottom: 10px; font-family: 'Playfair Display', serif; }
+.confirm-box p { color: var(--text-dim); font-size: 14px; margin-bottom: 24px; line-height: 1.5; }
+.confirm-btns { display: flex; gap: 12px; justify-content: flex-end; }
+
+/* Form in modal */
+.mform-group { margin-bottom: 20px; }
+.mform-group label {
+  display: block; font-size: 11px; font-weight: 700; color: var(--text-dim);
+  margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;
+}
+.mform-group input {
+  width: 100%; padding: 14px 16px; background: var(--deep);
+  border: 1px solid rgba(212,165,116,0.15); border-radius: var(--radius-sm);
+  color: var(--text); font-size: 14px; outline: none; transition: all 0.3s; font-family: inherit;
+}
+.mform-group input:focus { border-color: var(--sand); box-shadow: 0 0 0 3px var(--sand-dim); background: var(--surface); }
+.mform-group input::placeholder { color: var(--text-faint); }
+.mform-icon { position: relative; }
+.mform-icon svg {
+  position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+  width: 16px; height: 16px; color: var(--text-faint); pointer-events: none;
+}
+.mform-icon input { padding-left: 42px; }
+
+/* ===== ADMIN ===== */
+.admin-wrap { display: grid; grid-template-columns: 260px 1fr; gap: 32px; }
+.admin-nav {
+  background: var(--surface); border-radius: var(--radius); padding: 24px;
+  border: 1px solid rgba(212,165,116,0.08); height: fit-content; position: sticky; top: 100px;
+}
+.admin-nav h3 { font-size: 18px; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; font-family: 'Playfair Display', serif; }
+.admin-nav h3 svg { width: 20px; height: 20px; color: var(--sand); }
+.admin-menu { list-style: none; }
+.admin-menu li {
+  padding: 12px 14px; border-radius: var(--radius-sm); cursor: pointer;
+  display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--text-dim);
+  transition: all 0.3s; margin-bottom: 4px;
+}
+.admin-menu li:hover { background: var(--surface-light); color: var(--text); }
+.admin-menu li.active { background: var(--sand-dim); color: var(--sand); font-weight: 600; border: 1px solid rgba(212,165,116,0.15); }
+.admin-menu li svg { width: 18px; height: 18px; }
+
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 32px; }
+.stat-card {
+  background: var(--surface); border-radius: var(--radius-sm); padding: 24px;
+  border: 1px solid rgba(212,165,116,0.08); transition: all 0.3s;
+}
+.stat-card:hover { border-color: rgba(212,165,116,0.2); transform: translateY(-3px); box-shadow: var(--shadow); }
+.stat-icon { width: 40px; height: 40px; border-radius: 12px; background: var(--sand-dim); display: flex; align-items: center; justify-content: center; margin-bottom: 14px; }
+.stat-icon svg { width: 20px; height: 20px; color: var(--sand); }
+.stat-val { font-family: 'Playfair Display', serif; font-size: 28px; color: var(--sand); font-weight: 700; }
+.stat-label { font-size: 12px; color: var(--text-faint); margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+
+.table-wrap { background: var(--surface); border-radius: var(--radius-sm); border: 1px solid rgba(212,165,116,0.08); overflow: hidden; }
+.table { width: 100%; border-collapse: collapse; }
+.table th { text-align: left; padding: 16px 20px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-faint); border-bottom: 1px solid rgba(212,165,116,0.08); font-weight: 600; }
+.table td { padding: 14px 20px; font-size: 14px; border-bottom: 1px solid rgba(212,165,116,0.05); }
+.table tr:last-child td { border-bottom: none; }
+.table tr:hover td { background: rgba(212,165,116,0.03); }
+.table-thumb { width: 40px; height: 56px; border-radius: 6px; object-fit: cover; background: var(--deep); }
+.tbtn { padding: 6px 12px; border-radius: 6px; border: none; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.tbtn-view { background: var(--sand-dim); color: var(--sand); }
+.tbtn-view:hover { background: var(--sand); color: var(--night); }
+.tbtn-del { background: rgba(192,57,43,0.1); color: #e74c3c; margin-left: 8px; }
+.tbtn-del:hover { background: #e74c3c; color: #fff; }
+
+/* Admin forms */
+.aform { background: var(--surface); border-radius: var(--radius); padding: 32px; border: 1px solid rgba(212,165,116,0.08); }
+.aform-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+.aform-group { margin-bottom: 20px; }
+.aform-group.full { grid-column: 1 / -1; }
+.aform-group label { display: block; font-size: 11px; font-weight: 700; color: var(--text-dim); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+.aform-group input, .aform-group select, .aform-group textarea {
+  width: 100%; padding: 14px 16px; background: var(--deep);
+  border: 1px solid rgba(212,165,116,0.12); border-radius: var(--radius-sm);
+  color: var(--text); font-size: 14px; outline: none; transition: all 0.3s; font-family: inherit;
+}
+.aform-group input:focus, .aform-group select:focus, .aform-group textarea:focus { border-color: var(--sand); box-shadow: 0 0 0 3px var(--sand-dim); background: var(--surface); }
+.aform-group input::placeholder { color: var(--text-faint); }
+.aform-group textarea { min-height: 100px; resize: vertical; }
+
+/* ===== FILE DROP REDESIGN ===== */
+.file-drop {
+  border: 2px dashed rgba(212,165,116,0.25);
+  border-radius: var(--radius-sm);
+  padding: 40px 32px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.35s var(--ease);
+  background: var(--deep);
+  color: var(--text-dim);
+  position: relative;
+  overflow: hidden;
+}
+.file-drop::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(212,165,116,0.05) 0%, transparent 60%);
+  opacity: 0; transition: opacity 0.3s;
+  pointer-events: none;
+}
+.file-drop:hover, .file-drop.dragover {
+  border-color: var(--sand);
+  background: var(--sand-dim);
+  color: var(--sand);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-gold);
+}
+.file-drop:hover::before, .file-drop.dragover::before { opacity: 1; }
+.file-drop svg {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto 14px;
+  color: var(--sand);
+  display: block;
+  transition: transform 0.3s var(--ease);
+}
+.file-drop:hover svg, .file-drop.dragover svg { transform: scale(1.1) translateY(-2px); }
+.file-drop p { font-size: 15px; font-weight: 600; margin-bottom: 6px; color: var(--text); transition: color 0.3s; }
+.file-drop span { font-size: 12px; color: var(--text-faint); }
+.file-drop:hover p { color: var(--sand); }
+.file-preview {
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: var(--surface-light);
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--sand);
+  word-break: break-all;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(212,165,116,0.15);
+}
+.file-preview svg { width: 16px; height: 16px; margin: 0; }
+.file-preview .fp-clear {
+  margin-left: auto;
+  cursor: pointer;
+  color: var(--text-faint);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+.file-preview .fp-clear:hover { color: #e74c3c; }
+
+/* ===== PROFILE ===== */
+.profile-card {
+  background: linear-gradient(135deg, var(--surface) 0%, var(--surface-light) 100%);
+  border-radius: var(--radius); padding: 40px; border: 1px solid rgba(212,165,116,0.1);
+  display: flex; align-items: center; gap: 32px; margin-bottom: 40px;
+}
+.profile-ava {
+  width: 90px; height: 90px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--sand), var(--mint));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 36px; font-weight: 700; color: var(--night);
+  box-shadow: 0 8px 32px var(--sand-dim); flex-shrink: 0; overflow: hidden; position: relative; cursor: pointer;
+}
+.profile-ava img { width: 100%; height: 100%; object-fit: cover; }
+.profile-ava .ava-edit {
+  position: absolute; inset: 0; background: rgba(4,15,15,0.6); display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.3s; font-size: 11px; color: var(--sand); text-align: center;
+}
+.profile-ava:hover .ava-edit { opacity: 1; }
+.profile-info h2 { font-size: 28px; margin-bottom: 6px; font-family: 'Playfair Display', serif; }
+.profile-info p { color: var(--text-dim); font-size: 14px; }
+.profile-count { display: flex; gap: 32px; margin-top: 20px; }
+.profile-count div { text-align: center; }
+.profile-count strong { display: block; font-family: 'Playfair Display', serif; font-size: 24px; color: var(--sand); }
+.profile-count span { font-size: 11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 1px; }
+
+.profile-tabs { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid rgba(212,165,116,0.08); padding-bottom: 12px; }
+.profile-tab {
+  padding: 8px 16px; border-radius: 100px; border: none; background: transparent;
+  color: var(--text-dim); font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.3s; font-family: inherit;
+}
+.profile-tab:hover { color: var(--text); background: var(--surface-light); }
+.profile-tab.active { color: var(--night); background: linear-gradient(135deg, var(--sand), #c49360); }
+
+/* ===== EMPTY ===== */
+.empty { text-align: center; padding: 80px 20px; color: var(--text-faint); }
+.empty svg { width: 64px; height: 64px; margin-bottom: 20px; opacity: 0.4; }
+.empty h3 { color: var(--text); margin-bottom: 8px; font-size: 18px; }
+.empty p { font-size: 14px; }
+
+/* ===== TOASTS ===== */
+.toasts { position: fixed; bottom: 24px; right: 24px; z-index: 3000; display: flex; flex-direction: column; gap: 10px; }
+.toast {
+  background: var(--surface); border: 1px solid rgba(212,165,116,0.15); border-radius: var(--radius-sm);
+  padding: 16px 20px; display: flex; align-items: center; gap: 12px;
+  box-shadow: var(--shadow); min-width: 300px; animation: slideUp 0.4s var(--ease);
+  backdrop-filter: blur(10px);
+}
+.toast.ok { border-color: rgba(90,158,140,0.4); }
+.toast.err { border-color: rgba(231,76,60,0.4); }
+.toast svg { width: 20px; height: 20px; flex-shrink: 0; }
+.toast.ok svg { color: var(--mint); }
+.toast.err svg { color: #e74c3c; }
+.toast-msg { font-size: 14px; font-weight: 500; }
+@keyframes slideUp { from { opacity:0; transform:translateY(30px); } to { opacity:1; transform:translateY(0); } }
+
+/* ===== FOOTER ===== */
+.footer { border-top: 1px solid rgba(212,165,116,0.08); padding: 48px 0 24px; margin-top: 60px; }
+.footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px; margin-bottom: 40px; }
+.footer p { color: var(--text-faint); font-size: 13px; line-height: 1.7; margin-top: 12px; }
+.footer h4 { font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-dim); margin-bottom: 16px; }
+.footer a { color: var(--text-faint); text-decoration: none; font-size: 13px; display: block; margin-bottom: 10px; transition: color 0.3s; cursor: pointer; }
+.footer a:hover { color: var(--sand); }
+.footer-bot { border-top: 1px solid rgba(212,165,116,0.06); padding-top: 20px; display: flex; justify-content: space-between; font-size: 12px; color: var(--text-faint); }
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:1024px){
+  .hero-grid { grid-template-columns: 1fr; }
+  .hero-visual { display: none; }
+  .admin-wrap { grid-template-columns: 1fr; }
+  .admin-nav { position: static; }
+  .footer-grid { grid-template-columns: 1fr 1fr; }
+  .search-dropdown { width: 340px; left: auto; right: 0; }
+}
+@media(max-width:768px){
+  .header-inner { padding: 0 16px; height: 64px; }
+  .nav { display: none; }
+  .search-wrap input { width: 160px; }
+  .search-wrap input:focus { width: 220px; }
+  .hero { padding: 40px 0; }
+  .hero-stats { gap: 24px; }
+  .grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .detail-content { grid-template-columns: 1fr; }
+  .detail-poster { max-width: 200px; }
+  .aform-row { grid-template-columns: 1fr; }
+  .profile-card { flex-direction: column; text-align: center; }
+  .profile-count { justify-content: center; }
+  .footer-grid { grid-template-columns: 1fr; }
+  .modal-box { max-width: 100%; }
+  .search-card { grid-template-columns: 80px 1fr; padding: 12px; }
+  .sc-body h3 { font-size: 16px; }
+  .filters-bar { grid-template-columns: 1fr; }
+  .search-dropdown { width: 100%; min-width: 200px; right: 0; left: auto; top: calc(100% + 8px); }
+}
+
+/* ===== UTILITIES ===== */
+.hide { display: none !important; }
+.page { display: none; animation: fadeIn 0.5s var(--ease); }
+.page.active { display: block; }
+@keyframes fadeIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+</style>
+<base target="_blank">
+<base target="_blank">
+<base target="_blank">
+</head>
+<body>
+<div class="ambient"></div>
+
+<!-- ===== HEADER ===== -->
+<header class="header">
+  <div class="header-inner">
+    <a class="brand" onclick="go('home')">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#040f0f" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+      </div>
+      <div class="brand-text"><span class="brand-title">SimbaDM</span><span class="brand-sub">Кинематограф</span></div>
+    </a>
+    <nav class="nav" id="mainNav">
+      <button class="nav-btn active" onclick="go('home')" data-page="home">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Главная
+      </button>
+      <button class="nav-btn" onclick="go('catalog')" data-page="catalog">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>Каталог
+      </button>
+      <button class="nav-btn" onclick="go('categories')" data-page="categories">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>Жанры
+      </button>
+      <button class="nav-btn hide" onclick="go('admin')" data-page="admin" id="navAdmin">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>Управление
+      </button>
+    </nav>
+    <div class="actions">
+      <div class="search-wrap" style="position:relative;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="Найти фильм..." id="searchInput" oninput="liveSearch(this.value)" onkeydown="if(event.key==='Enter'){doSearch(this.value); hideSearchDropdown();}" onblur="setTimeout(hideSearchDropdown,250)" onfocus="if(this.value.trim().length>0) liveSearch(this.value)">
+        <div class="search-dropdown" id="searchDropdown">
+          <div class="search-list" id="searchLiveList"></div>
+          <div class="search-footer" onclick="doSearch(document.getElementById('searchInput').value); hideSearchDropdown();">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Страница поиска
+          </div>
+        </div>
+      </div>
+      <div id="authArea">
+        <button class="btn btn-ghost" onclick="openModal('login')">Вход</button>
+        <button class="btn btn-gold" onclick="openModal('register')">Регистрация</button>
+      </div>
+      <div id="userArea" class="hide">
+        <div class="avatar" id="userAva" onclick="go('profile')">?</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ===== MAIN ===== -->
+<main class="main">
+<div class="app">
+
+<!-- HOME -->
+<div class="page active" id="p-home">
+  <section class="hero">
+    <div class="hero-grid">
+      <div>
+        <div class="hero-label">
+          <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          Топ-платформа 2026
+        </div>
+        <h1>Фильмы, что <em>вдохновляют</em><br>каждый вечер</h1>
+        <p>Коллекция отборного кино от классики до новинок. Персональные подборки, удобный поиск и собственные списки — всё для настоящих ценителей.</p>
+        <div class="hero-btns">
+          <button class="btn btn-gold" style="padding:14px 28px; font-size:15px;" onclick="go('catalog')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Смотреть каталог
+          </button>
+          <button class="btn btn-ghost" style="padding:14px 28px; font-size:15px;" onclick="go('categories')">Исследовать жанры</button>
+        </div>
+        <div class="hero-stats">
+          <div class="hero-stat"><h4 id="hMovies">0</h4><span>фильмов</span></div>
+          <div class="hero-stat"><h4 id="hCats">0</h4><span>жанров</span></div>
+          <div class="hero-stat"><h4 id="hUsers">0</h4><span>зрителей</span></div>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <div class="hero-poster-stack">
+          <div class="hposter" onclick="go('movie',{id:1})"><img src="https://picsum.photos/seed/movie1/220/320" alt=""></div>
+          <div class="hposter" onclick="go('movie',{id:2})"><img src="https://picsum.photos/seed/movie2/200/290" alt=""></div>
+          <div class="hposter" onclick="go('movie',{id:3})"><img src="https://picsum.photos/seed/movie3/180/260" alt=""></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="sec-head"><h2>Сейчас в тренде</h2><span class="sec-link" onclick="go('catalog')">Весь каталог <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></span></div>
+    <div class="grid" id="homeTrending"></div>
+  </section>
+
+  <section class="section" style="background: linear-gradient(180deg, transparent 0%, rgba(12,30,28,0.4) 50%, transparent 100%); border-radius: var(--radius); padding: 48px 32px;">
+    <div class="sec-head"><h2>Новые поступления</h2></div>
+    <div class="grid" id="homeNew"></div>
+  </section>
+</div>
+
+<!-- CATALOG -->
+<div class="page" id="p-catalog">
+  <section class="section">
+    <div class="sec-head"><h2>Каталог фильмов</h2></div>
+    <div class="pills" id="catPills"></div>
+    <div class="filters-bar" id="catalogFilters">
+      <div class="filter-group">
+        <label>Тип</label>
+        <select id="fType" onchange="applyFilters()">
+          <option value="all">Все</option>
+          <option value="movie">Фильм</option>
+          <option value="series">Сериал</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Жанр</label>
+        <select id="fGenre" onchange="applyFilters()"><option value="all">Все жанры</option></select>
+      </div>
+      <div class="filter-group">
+        <label>Страна</label>
+        <select id="fCountry" onchange="applyFilters()">
+          <option value="all">Все страны</option>
+          <option value="США">США</option>
+          <option value="Япония">Япония</option>
+          <option value="Китай">Китай</option>
+          <option value="Южная Корея">Корея</option>
+          <option value="Новая Зеландия">Новая Зеландия</option>
+          <option value="Великобритания">Великобритания</option>
+          <option value="Россия">Россия</option>
+          <option value="Франция">Франция</option>
+          <option value="Германия">Германия</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Год от</label>
+        <select id="fYearFrom" onchange="applyFilters()">
+          <option value="all">Все года</option>
+          <option value="2017" selected>2017</option>
+          <option value="2018">2018</option>
+          <option value="2019">2019</option>
+          <option value="2020">2020</option>
+          <option value="2021">2021</option>
+          <option value="2022">2022</option>
+          <option value="2023">2023</option>
+          <option value="2024">2024</option>
+          <option value="2025">2025</option>
+          <option value="2026">2026</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Год до</label>
+        <select id="fYearTo" onchange="applyFilters()">
+          <option value="2017">2017</option>
+          <option value="2018">2018</option>
+          <option value="2019">2019</option>
+          <option value="2020">2020</option>
+          <option value="2021">2021</option>
+          <option value="2022">2022</option>
+          <option value="2023">2023</option>
+          <option value="2024">2024</option>
+          <option value="2025">2025</option>
+          <option value="2026" selected>2026</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>&nbsp;</label>
+        <button class="btn btn-ghost btn-sm" style="width:100%;" onclick="resetFilters()">Сбросить</button>
+      </div>
+    </div>
+    <div class="grid" id="catalogGrid"></div>
+    <div class="empty hide" id="catalogEmpty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <h3>Ничего не найдено</h3><p>Попробуйте изменить фильтры или поисковый запрос</p>
+    </div>
+  </section>
+</div>
+
+<!-- CATEGORIES -->
+<div class="page" id="p-categories">
+  <section class="section">
+    <div class="sec-head"><h2>Жанры кино</h2></div>
+    <div id="catSections"></div>
+  </section>
+</div>
+
+<!-- MOVIE DETAIL -->
+<div class="page" id="p-movie">
+  <div class="detail-hero" id="dHero">
+    <div class="detail-hero-bg" id="dHeroBg"></div>
+    <div class="app detail-content">
+      <div class="detail-poster" id="dPoster"><img src="" alt=""></div>
+      <div class="detail-info">
+        <h1 id="dTitle"></h1>
+        <div class="detail-meta" id="dMeta"></div>
+        <div style="margin-bottom: 20px;">
+          <div class="star-rating" id="starRating"></div>
+        </div>
+        <p class="detail-desc" id="dDesc"></p>
+        <div class="detail-actions">
+          <button class="btn btn-gold" onclick="playMovie()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Смотреть фильм
+          </button>
+          <button class="btn btn-ghost" id="dFavBtn" onclick="toggleFav()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            <span id="dFavText">В избранное</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="app" style="position:relative; z-index:3; margin-top: -20px;">
+    <div class="player-wrap" id="playerWrap">
+      <div class="player-placeholder">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></svg>
+        <p>Нажмите «Смотреть фильм» для воспроизведения</p>
+      </div>
+    </div>
+    <div id="infoTable" class="info-table"></div>
+    <div id="prosCons" class="pros-cons"></div>
+    <div id="scheduleBox" class="schedule-box hide">
+      <h4>Расписание выхода серий</h4>
+      <div id="scheduleContent"></div>
+    </div>
+    <div id="relatedSection" class="related-section hide">
+      <div class="sec-head"><h3 style="font-size:20px;">Связанные фильмы</h3></div>
+      <div id="relatedGrid" class="related-grid"></div>
+    </div>
+
+    <!-- COMMENTS -->
+    <div class="comments-section" id="commentsSection">
+      <h3>Комментарии <span id="commentsCount" style="color:var(--text-faint); font-size:16px; font-family:'Inter',sans-serif; font-weight:400;">(0)</span></h3>
+      <div class="comment-form" id="commentForm">
+        <div class="comment-form-header">
+          <div class="guest-toggle" id="guestToggleBox">
+            <input type="checkbox" id="asGuest" onchange="toggleGuestName()">
+            <label for="asGuest" style="cursor:pointer;">Как гость</label>
+          </div>
+          <input type="text" id="guestName" placeholder="Ваше имя" class="hide" maxlength="30">
+        </div>
+        <textarea id="commentText" placeholder="Напишите комментарий..."></textarea>
+        <div class="comment-actions">
+          <span id="commentHint">Войдите или напишите как гость</span>
+          <button class="btn btn-gold btn-sm" onclick="submitComment()">Отправить</button>
+        </div>
+      </div>
+      <div id="commentsList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN -->
+<div class="page" id="p-admin">
+  <section class="section">
+    <div class="admin-wrap">
+      <aside class="admin-nav">
+        <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>Управление</h3>
+        <ul class="admin-menu">
+          <li class="active" onclick="admTab('dash')" id="adm-dash"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Статистика</li>
+          <li onclick="admTab('movies')" id="adm-movies"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>Фильмы</li>
+          <li onclick="admTab('add')" id="adm-add"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Добавить</li>
+          <li onclick="admTab('users')" id="adm-users"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Пользователи</li>
+        </ul>
+      </aside>
+      <div>
+        <div id="admView-dash">
+          <div class="sec-head"><h2 style="font-size:22px;">Статистика платформы</h2></div>
+          <div class="stat-grid">
+            <div class="stat-card"><div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg></div><div class="stat-val" id="sMovies">0</div><div class="stat-label">Фильмов</div></div>
+            <div class="stat-card"><div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><div class="stat-val" id="sUsers">0</div><div class="stat-label">Пользователей</div></div>
+            <div class="stat-card"><div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></div><div class="stat-val" id="sCats">0</div><div class="stat-label">Жанров</div></div>
+            <div class="stat-card"><div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div><div class="stat-val" id="sFavs">0</div><div class="stat-label">В избранном</div></div>
+          </div>
+        </div>
+        <div id="admView-movies" class="hide">
+          <div class="sec-head"><h2 style="font-size:22px;">Все фильмы</h2></div>
+          <div class="table-wrap"><table class="table"><thead><tr><th>Постер</th><th>Название</th><th>Жанр</th><th>Год</th><th>Рейтинг</th><th></th></tr></thead><tbody id="admMoviesBody"></tbody></table></div>
+        </div>
+        <div id="admView-add" class="hide">
+          <div class="sec-head"><h2 style="font-size:22px;">Добавить фильм</h2></div>
+          <form class="aform" onsubmit="handleUpload(event)">
+            <div class="aform-row">
+              <div class="aform-group"><label>Название фильма</label><input type="text" id="upTitle" placeholder="Название" required></div>
+              <div class="aform-group"><label>Жанр</label><select id="upCat" required></select></div>
+            </div>
+            <div class="aform-row">
+              <div class="aform-group"><label>Год выпуска</label><input type="number" id="upYear" placeholder="2024" min="1900" max="2030" required></div>
+              <div class="aform-group"><label>Рейтинг по умолчанию</label><input type="number" id="upRate" placeholder="0" min="0" max="10" step="0.1" value="0"></div>
+            </div>
+            <div class="aform-row">
+              <div class="aform-group"><label>Страна</label><input type="text" id="upCountry" placeholder="США"></div>
+              <div class="aform-group"><label>Длительность</label><input type="text" id="upDuration" placeholder="2 часа 30 мин"></div>
+            </div>
+            <div class="aform-row">
+              <div class="aform-group"><label>Тип</label><select id="upType"><option value="movie">Фильм</option><option value="series">Сериал</option></select></div>
+              <div class="aform-group"><label>Количество серий</label><input type="number" id="upEpisodes" value="1" min="1"></div>
+            </div>
+            <div class="aform-row">
+              <div class="aform-group"><label>Студия / Канал</label><input type="text" id="upStudio" placeholder="Netflix, Marvel..."></div>
+              <div class="aform-group"><label>Озвучка / Дубляж</label><input type="text" id="upDubbing" placeholder="Русская озвучка, субтитры..."></div>
+            </div>
+
+            <!-- POSTER UPLOAD -->
+            <div class="aform-row">
+              <div class="aform-group full">
+                <label>Постер (перетащите файл или введите URL)</label>
+                <div class="file-drop" id="posterDrop" onclick="document.getElementById('posterInput').click()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  <p>Перетащите постер сюда</p>
+                  <span>или нажмите для выбора файла</span>
+                  <div class="file-preview hide" id="posterPreview"></div>
+                </div>
+                <input type="file" id="posterInput" accept="image/*" class="hide" onchange="handleFileUpload(this, 'poster')">
+                <div style="margin-top:10px; color:var(--text-faint); font-size:12px; text-align:center;">— или введите URL ниже —</div>
+                <input type="url" id="upPoster" placeholder="https://example.com/poster.jpg" style="margin-top:10px;">
+              </div>
+            </div>
+
+            <!-- VIDEO UPLOAD -->
+            <div class="aform-row">
+              <div class="aform-group full">
+                <label>Видео (перетащите файл или введите URL)</label>
+                <div class="file-drop" id="videoDrop" onclick="document.getElementById('videoInput').click()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                  <p>Перетащите видео сюда</p>
+                  <span>или нажмите для выбора файла</span>
+                  <div class="file-preview hide" id="videoPreview"></div>
+                </div>
+                <input type="file" id="videoInput" accept="video/*" class="hide" onchange="handleFileUpload(this, 'video')">
+                <div style="margin-top:10px; color:var(--text-faint); font-size:12px; text-align:center;">— или введите URL ниже —</div>
+                <input type="url" id="upVideo" placeholder="https://example.com/video.mp4" style="margin-top:10px;">
+              </div>
+            </div>
+
+            <div class="aform-row">
+              <div class="aform-group full"><label>Описание</label><textarea id="upDesc" placeholder="О чём фильм..." required></textarea></div>
+            </div>
+            <div class="aform-row">
+              <div class="aform-group"><label>Актёры (через запятую)</label><input type="text" id="upActors" placeholder="Имя Фамилия, Имя Фамилия..."></div>
+              <div class="aform-group"><label>Плюсы (через запятую)</label><input type="text" id="upPros" placeholder="Отличный сюжет, крутая графика..."></div>
+            </div>
+            <div class="aform-row">
+              <div class="aform-group"><label>Минусы (через запятую)</label><input type="text" id="upCons" placeholder="Медленное начало, слишком длинный..."></div>
+              <div class="aform-group"><label>Расписание серий</label><input type="text" id="upSchedule" placeholder="По понедельникам и вторникам"></div>
+            </div>
+            <div class="aform-row">
+              <div class="aform-group full"><label>Связанные фильмы (ID через запятую)</label><input type="text" id="upRelated" placeholder="2, 3, 5"></div>
+            </div>
+            <button type="submit" class="modal-footer-btn" style="margin-top: 8px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              Опубликовать фильм
+            </button>
+          </form>
+        </div>
+        <div id="admView-users" class="hide">
+          <div class="sec-head"><h2 style="font-size:22px;">Пользователи</h2></div>
+          <div class="table-wrap"><table class="table"><thead><tr><th>ID</th><th>Имя</th><th>Email</th><th>Роль</th><th>Дата</th></tr></thead><tbody id="admUsersBody"></tbody></table></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- PROFILE -->
+<div class="page" id="p-profile">
+  <section class="section">
+    <div class="profile-card">
+      <div class="profile-ava" id="prAva" onclick="openSettings()">
+        <span id="prAvaText">?</span>
+        <img id="prAvaImg" class="hide" src="" alt="">
+        <div class="ava-edit">Изменить<br>фото</div>
+      </div>
+      <div class="profile-info">
+        <h2 id="prName">Гость</h2>
+        <p id="prEmail">Войдите в аккаунт</p>
+        <div class="profile-count">
+          <div><strong id="prFav">0</strong><span>Избранное</span></div>
+          <div><strong id="prRated">0</strong><span>Оценок</span></div>
+          <div><strong id="prActors">0</strong><span>Актёры</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="profile-tabs">
+      <button class="profile-tab active" onclick="switchProfileTab('fav')" id="pt-fav">Избранное</button>
+      <button class="profile-tab" onclick="switchProfileTab('actors')" id="pt-actors">Мои актёры</button>
+      <button class="profile-tab" onclick="switchProfileTab('rated')" id="pt-rated">Оценки</button>
+    </div>
+    <div id="profileFav">
+      <div class="sec-head"><h2>Избранное</h2></div>
+      <div class="grid" id="prFavGrid"></div>
+      <div class="empty hide" id="prEmptyFav">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        <h3>Пока пусто</h3><p>Добавляйте фильмы в избранное, чтобы собрать свою коллекцию</p>
+      </div>
+    </div>
+    <div id="profileActors" class="hide">
+      <div class="sec-head"><h2>Мои актёры</h2></div>
+      <div id="prActorsGrid" style="display:flex; flex-wrap:wrap; gap:12px;"></div>
+      <div class="empty hide" id="prEmptyActors">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <h3>Нет избранных актёров</h3><p>Кликайте на актёров в карточках фильмов, чтобы добавить их сюда</p>
+      </div>
+    </div>
+    <div id="profileRated" class="hide">
+      <div class="sec-head"><h2>Оценённые фильмы</h2></div>
+      <div class="grid" id="prRatedGrid"></div>
+      <div class="empty hide" id="prEmptyRated">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        <h3>Нет оценок</h3><p>Оценивайте фильмы, чтобы видеть их здесь</p>
+      </div>
+    </div>
+    <div style="text-align:center; margin-top:40px;">
+      <button class="btn btn-ghost" style="margin-right:10px;" onclick="openSettings()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Настройки профиля
+      </button>
+      <button class="btn btn-danger" onclick="logout()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Выйти из аккаунта
+      </button>
+    </div>
+  </section>
+</div>
+
+<!-- SEARCH -->
+<div class="page" id="p-search">
+  <section class="section">
+    <div class="sec-head"><h2>Поиск: «<span id="sQuery" style="color:var(--sand)"></span>»</h2></div>
+    <div class="search-results" id="sResults"></div>
+    <div class="empty hide" id="sEmpty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <h3>По запросу ничего не найдено</h3><p>Попробуйте другие слова</p>
+    </div>
+  </section>
+</div>
+
+</div>
+</main>
+
+<!-- ===== FOOTER ===== -->
+<footer class="footer">
+  <div class="app">
+    <div class="footer-grid">
+      <div>
+        <a class="brand" onclick="go('home')">
+          <div class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="#040f0f" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></div>
+          <div class="brand-text"><span class="brand-title">SimbaDM</span><span class="brand-sub">Кинематограф</span></div>
+        </a>
+        <p>Платформа для ценителей кино. Уникальный дизайн, удобный каталог и персональные подборки.</p>
+      </div>
+      <div><h4>Навигация</h4><a onclick="go('home')">Главная</a><a onclick="go('catalog')">Каталог</a><a onclick="go('categories')">Жанры</a></div>
+      <div><h4>Аккаунт</h4><a onclick="openModal('login')">Вход</a><a onclick="openModal('register')">Регистрация</a><a onclick="go('profile')">Профиль</a></div>
+      <div><h4>Система</h4><a onclick="go('admin')">Админ-панель</a><a>Поддержка</a><a>Конфиденциальность</a></div>
+    </div>
+    <div class="footer-bot"><span> SimbaDM. Все права защищены.</span><span>Создано с вниманием к деталям</span></div>
+  </div>
+</footer>
+
+<!-- ===== MODALS ===== -->
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()">
+  <!-- LOGIN -->
+  <div class="modal-box" id="modalLogin">
+    <div class="modal-header">
+      <div>
+        <h3>Вход в аккаунт</h3>
+        <p>С возвращением! Войдите, чтобы продолжить</p>
+      </div>
+      <button class="modal-close" onclick="closeModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <form onsubmit="handleLogin(event)">
+        <div class="mform-group mform-icon">
+          <label>Email</label>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          <input type="email" id="inEmail" placeholder="you@example.com" required>
+        </div>
+        <div class="mform-group mform-icon">
+          <label>Пароль</label>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <input type="password" id="inPass" placeholder="Ваш пароль" required>
+        </div>
+        <button type="submit" class="modal-footer-btn">Войти в аккаунт</button>
+      </form>
+      <div class="modal-divider">или</div>
+      <div class="modal-switch">Нет аккаунта? <a onclick="switchModal('register')">Создать новый</a></div>
+    </div>
+  </div>
+
+  <!-- REGISTER -->
+  <div class="modal-box hide" id="modalRegister">
+    <div class="modal-header">
+      <div>
+        <h3>Создать аккаунт</h3>
+        <p>Начните своё путешествие в мир кино</p>
+      </div>
+      <button class="modal-close" onclick="closeModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <form onsubmit="handleRegister(event)">
+        <div class="mform-group mform-icon">
+          <label>Ваше имя</label>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <input type="text" id="regName" placeholder="Как вас зовут?" required>
+        </div>
+        <div class="mform-group mform-icon">
+          <label>Email</label>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          <input type="email" id="regEmail" placeholder="you@example.com" required>
+        </div>
+        <div class="mform-group mform-icon">
+          <label>Пароль</label>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <input type="password" id="regPass" placeholder="Минимум 6 символов" minlength="6" required>
+        </div>
+        <button type="submit" class="modal-footer-btn">Создать аккаунт</button>
+      </form>
+      <div class="modal-divider">или</div>
+      <div class="modal-switch">Уже есть аккаунт? <a onclick="switchModal('login')">Войти</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-bg" id="settingsBg" onclick="if(event.target===this)closeSettings()">
+  <div class="modal-box" style="max-width:520px;">
+    <div class="modal-header">
+      <div>
+        <h3>Настройки профиля</h3>
+        <p>Измените свои данные и аватар</p>
+      </div>
+      <button class="modal-close" onclick="closeSettings()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <form onsubmit="saveSettings(event)">
+        <div style="text-align:center; margin-bottom:20px;">
+          <div class="profile-ava" style="margin:0 auto; width:80px; height:80px; font-size:28px; position:relative;" id="settingsAva">
+            <span id="settingsAvaText">?</span>
+            <img id="settingsAvaImg" class="hide" src="" alt="" style="position:absolute; inset:0;">
+            <div style="position:absolute; inset:0; background:rgba(4,15,15,0.5); display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity 0.3s; cursor:pointer; border-radius:50%;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0" onclick="document.getElementById('settingsAvatarInput').click()">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--sand);"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+          </div>
+          <input type="file" id="settingsAvatarInput" accept="image/*" class="hide" onchange="handleSettingsAvatar(this)">
+          <p style="font-size:12px; color:var(--text-faint); margin-top:8px;">Нажмите на аватар, чтобы загрузить фото</p>
+        </div>
+        <div class="mform-group">
+          <label>Имя</label>
+          <input type="text" id="setName" required>
+        </div>
+        <div class="mform-group">
+          <label>Email</label>
+          <input type="email" id="setEmail" required>
+        </div>
+        <div class="mform-group">
+          <label>Новый пароль (оставьте пустым, если не меняете)</label>
+          <input type="password" id="setPass" placeholder="Новый пароль" minlength="6">
+        </div>
+        <button type="submit" class="modal-footer-btn">Сохранить изменения</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ===== CONFIRM DIALOG ===== -->
+<div class="confirm-bg" id="confirmBg" onclick="if(event.target===this)closeConfirm()">
+  <div class="confirm-box">
+    <h4 id="confirmTitle">Изменить оценку?</h4>
+    <p id="confirmText">Вы уже ставили оценку этому фильму. Хотите изменить её?</p>
+    <div class="confirm-btns">
+      <button class="btn btn-ghost" onclick="closeConfirm()">Отмена</button>
+      <button class="btn btn-gold" onclick="confirmAction()">Изменить</button>
+    </div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+
+<script>
+// ================== DATA ==================
+const DEFAULT_CATS = [
+  {id:'action', name:'Боевик'}, {id:'comedy', name:'Комедия'}, {id:'drama', name:'Драма'},
+  {id:'scifi', name:'Фантастика'}, {id:'horror', name:'Ужасы'}, {id:'romance', name:'Мелодрама'},
+  {id:'thriller', name:'Триллер'}, {id:'adventure', name:'Приключения'}, {id:'animation', name:'Мультфильм'}
+];
+const DEFAULT_MOVIES = [
+  {
+    id:1, title:'Властелин колец: Братство Кольца', category:'adventure', year:2001, rating:0,
+    poster:'https://picsum.photos/seed/lotr1/300/450', video:'',
+    desc:'Фродо Бэггинс, хоббит из Шира, получает в наследство могущественное Кольцо Всевластия от своего дяди Бильбо. Вместе с верными спутниками — Сэмом, Мэри и Пиппином — он отправляется в опасное путешествие через Средиземье, чтобы уничтожить Кольцо в огнях Роковой Горы. По пути к ним присоединяются Арагорн, эльф Леголас, гном Гимли и маг Гэндальф. Вместе они образуют Братство Кольца, стоящее между тьмой Саурона и свободой народов Средиземья.',
+    views:45200, country:'Новая Зеландия', duration:'2 часа 58 мин', type:'movie', episodes:1,
+    studio:'New Line Cinema, WingNut Films',
+    actors:'Элайджа Вуд, Иэн Маккеллен, Вигго Мортенсен, Шон Эстин, Орландо Блум, Джон Рис-Дэвис, Билли Бойд, Доминик Монаган',
+    dubbing:'Русский дубляж (Невафильм), английский оригинал, субтитры на 12 языках',
+    pros:'Эпичный масштаб сюжета, потрясающие пейзажи Новой Зеландии, великолепная музыка Ховарда Шора, глубокая проработка мира, сильная актёрская игра',
+    cons:'Довольно длинное повествование, множество персонажей может запутать при первом просмотре, медленный темп в начале',
+    schedule:'', related:[2,3]
+  },
+  {
+    id:2, title:'Тёмный рыцарь', category:'action', year:2008, rating:0,
+    poster:'https://picsum.photos/seed/darkknight/300/450', video:'',
+    desc:'Бэтмен, лейтенант Гордон и прокурор Харви Дент объединяются, чтобы уничтожить организованную преступность в Готэме. Но в город приходит Джокер — безумный гений преступного мира, который сеет хаос и заставляет Бэтмена столкнуться с тяжелейшим моральным выбором в его жизни. Фильм исследует темы хаоса, порядка и тонкой грани между героем и злодеем в мире, где справедливость имеет свою цену.',
+    views:38900, country:'США, Великобритания', duration:'2 часа 32 мин', type:'movie', episodes:1,
+    studio:'Warner Bros. Pictures, Legendary Pictures, Syncopy',
+    actors:'Кристиан Бэйл, Хит Леджер, Аарон Экхарт, Мэгги Джилленхол, Гари Олдман, Майкл Кейн, Морган Фриман',
+    dubbing:'Русский дубляж (Пифагор), оригинальная дорожка, субтитры',
+    pros:'Легендарная роль Хита Леджера как Джокера, невероятно напряжённый сюжет, глубокая философская подоплёка, отличные экшн-сцены',
+    cons:'Чрезвычайно мрачная атмосфера, тяжёлый для восприятия эмоциональный накал, длинные диалоговые сцены',
+    schedule:'', related:[1,6]
+  },
+  {
+    id:3, title:'Начало', category:'scifi', year:2010, rating:0,
+    poster:'https://picsum.photos/seed/inception/300/450', video:'',
+    desc:'Дом Кобб — редкий специалист в опасном искусстве экстракции: он проникает в подсознание людей во время сна, чтобы украсть ценные секреты из их подсознания. Ему предлагают шанс на прощение прошлых грехов и возвращение домой к детям, но для этого он должен совершить невозможное — не украсть идею, а внедрить её. Кобб собирает команду профессионалов для миссии внутри многоуровневого сновидения, где реальность становится всё более хрупкой.',
+    views:42100, country:'США, Великобритания', duration:'2 часа 28 мин', type:'movie', episodes:1,
+    studio:'Warner Bros. Pictures, Legendary Pictures, Syncopy',
+    actors:'Леонардо ДиКаприо, Джозеф Гордон-Левитт, Эллиот Пейдж, Том Харди, Кен Ватанабэ, Дилип Рао, Киллиан Мёрфи, Марион Котийяр',
+    dubbing:'Русский дубляж (Пифагор), оригинал, субтитры на 20+ языках',
+    pros:'Сложный многоуровневый сюжет, революционные визуальные эффекты (гибнущий город, вращающийся коридор), глубокая эмоциональная линия, открытая концовка',
+    cons:'Запутанная структура повествования, требует полного внимания и нескольких просмотров для полного понимания, перегруженность техническими деталями',
+    schedule:'', related:[12]
+  },
+  {
+    id:4, title:'Игра в кальмара', category:'thriller', year:2021, rating:0,
+    poster:'https://picsum.photos/seed/squidgame/300/450', video:'',
+    desc:'Сон Ки Хун — разорившийся водитель, живущий за счёт пожилой матери. Однажды ему предлагают шанс выиграть 45,6 миллиарда вон, приняв участие в секретных играх. Вместе с 455 другими участниками, все из которых находятся на грани отчаяния, он проходит через шесть детских игр со смертельными ставками. Сериал жестоко критикует капиталистическое общество, неравенство и человеческую жадность через призму выживания.',
+    views:125000, country:'Южная Корея', duration:'1 час', type:'series', episodes:9,
+    studio:'Netflix, Siren Pictures',
+    actors:'Ли Джон-джэ, Пак Хэ-су, Ви Ха-джун, Чон Хо Ён, О Ён Су, Хо Сон Тхэ, Анупам Трипати, Ким Чжу Рён',
+    dubbing:'Корейский оригинал, русская озвучка (Netflix), субтитры на 37 языках',
+    pros:'Невероятное напряжение в каждой серии, острая социальная критика, проработанные персонажи с трагическими историями, визуальный стиль с яркими контрастами',
+    cons:'Чрезмерно жестокие сцены не для слабонервных, некоторые повороты сюжета предсказуемы, финал оставляет много вопросов',
+    schedule:'Первый сезон вышел 17 сентября 2021, второй сезон ожидается в ноябре 2024',
+    related:[]
+  },
+  {
+    id:5, title:'Форрест Гамп', category:'drama', year:1994, rating:0,
+    poster:'https://picsum.photos/seed/forrest/300/450', video:'',
+    desc:'Форрест Гамп — простой человек с низким IQ, но добрым сердцем и невероятной судьбой. Несмотря на свою простоту, он становится свидетелем и участником ключевых событий американской истории второй половины XX века: он играет в американский футбол, участвует во Вьетнамской войне, встречает президентов, становится чемпионом по настольному теннису и капитаном креветочного флота. Всё это время он любит одну девушку — Джинни.',
+    views:47800, country:'США', duration:'2 часа 22 мин', type:'movie', episodes:1,
+    studio:'Paramount Pictures',
+    actors:'Том Хэнкс, Робин Райт, Гэри Синиз, Майкелти Уильямсон, Салли Филд, Хейли Джоэл Осмент',
+    dubbing:'Русский дубляж (Невафильм), оригинал, субтитры',
+    pros:'Трогательная история на всю жизнь, блестящая игра Тома Хэнкса, великолепный саундтрек, умело вплетённая история Америки',
+    cons:'Медленный ритм повествования, некоторые моменты слишком сентиментальны, упрощённый взгляд на исторические события',
+    schedule:'', related:[]
+  },
+  {
+    id:6, title:'Матрица', category:'scifi', year:1999, rating:0,
+    poster:'https://picsum.photos/seed/matrix/300/450', video:'',
+    desc:'Томас Андерсон, известный в хакерских кругах как Нео, живёт двойной жизнь. Ночью он взламывает системы, а днём работает программистом. Нео чувствует, что с реальностью что-то не так, и его поиски истины приводят к Морфеусу — лидеру группы бунтовщиков. Морфеус открывает Нео правду: мир, который он знает, — это симуляция "Матрица", созданная машинами для порабощения человечества. Нео должен решить, готов ли он принять свою роль Избранного.',
+    views:35600, country:'США, Австралия', duration:'2 часа 16 мин', type:'movie', episodes:1,
+    studio:'Warner Bros. Pictures, Silver Pictures, Groucho II Film Partnership',
+    actors:'Киану Ривз, Лоренс Фишбёрн, Кэрри-Энн Мосс, Хьюго Уивинг, Джо Пантолиано, Глория Фостер',
+    dubbing:'Русский дубляж (Невафильм), оригинал, субтитры',
+    pros:'Революционные визуальные эффекты (Bullet Time), глубокая философская концепция, стильный киберпанк-дизайн, культовые боевые сцены',
+    cons:'Некоторые спецэффекты устарели с годами, запутанная философия может оттолкнуть, сложная терминология',
+    schedule:'', related:[2]
+  },
+  {
+    id:7, title:'Король Лев', category:'animation', year:1994, rating:0,
+    poster:'https://picsum.photos/seed/lionking/300/450', video:'',
+    desc:'В великолепном африканском королевстве Прайд-Рокс родился наследник трона — львёнок Симба. Его дядя Шрам, мечтающий о власти, убивает короля Муфасу и обвиняет в этом Симбу. Испуганный и униженный, львёнок бежит в пустыню, где встречает Тимона и Пумбу, учивших его философии "Акуна Матата" ("Беззаботная жизнь"). Но прошлое настигает его, и Симба должен вернуться, чтобы отомстить за отца и вернуть себе законное место короля.',
+    views:51200, country:'США', duration:'1 час 28 мин', type:'movie', episodes:1,
+    studio:'Walt Disney Pictures, Walt Disney Feature Animation',
+    actors:'Мэттью Бродерик, Джереми Айронс, Джеймс Эрл Джонс, Нэйтан Лейн, Эрни Сabella, Роуэн Аткинсон, Вупи Голдберг',
+    dubbing:'Русский дубляж (Disney Character Voices), оригинал, субтитры',
+    pros:'Великолепная музыка Элтона Джона и Тима Райса, глубокие эмоции, потрясающая анимация ручной работы, вечная история о круге жизни',
+    cons:'Относительно короткий метраж, некоторые сцены могут напугать маленьких детей, классический сюжет без сюрпризов',
+    schedule:'', related:[]
+  },
+  {
+    id:8, title:'Титаник', category:'romance', year:1997, rating:0,
+    poster:'https://picsum.photos/seed/titanic/300/450', video:'',
+    desc:'В 1996 году сокровищекопатель Брок Ловетт обнаруживает на дне Атлантического океана сейф с рисунком обнажённой девушки, носящей ожерелье с редким алмазом "Сердце Океана". На ТВ-экране эту новость видит 101-летняя Роза Доусон Калверт, которая заявляет, что она — та самая девушка с рисунка. Она рассказывает историю своего путешествия на "Титанике" в 1912 году, где она, богатая девушка из высшего общества, влюбилась в бедного художника Джека Доусона на фоне гибели "корабля мечты".',
+    views:54300, country:'США', duration:'3 часа 14 мин', type:'movie', episodes:1,
+    studio:'Paramount Pictures, 20th Century Fox, Lightstorm Entertainment',
+    actors:'Леонардо ДиКаприо, Кейт Уинслет, Билли Зейн, Кэти Бейтс, Фрэнсис Фишер, Глория Стюарт, Билл Пэкстон, Бернард Хилл',
+    dubbing:'Русский дубляж (Невафильм), оригинал, субтитры',
+    pros:'Эпическая история любви на фоне реальной трагедии, невероятные визуальные эффекты и точная реконструкция корабля, блестящая игра Кейт Уинслет и Леонардо ДиКаприо',
+    cons:'Чрезмерно длинный хронометраж, некоторые диалоги слишком мелодраматичны, исторические неточности в деталях',
+    schedule:'', related:[]
+  },
+  {
+    id:9, title:'Сияние', category:'horror', year:1980, rating:0,
+    poster:'https://picsum.photos/seed/shining/300/450', video:'',
+    desc:'Джек Торранс, писатель и бывший алкоголик, устраивается смотрителем в роскошный отель "Оверлук" в Колорадо на зимний сезон. Вместе с женой Венди и сыном Дэнни, обладающим сверхъестественной способностью "сияние", они переезжают в огромный, но полностью изолированный отель. По мере того как снежная буря отрезает их от внешнего мира, сверхъестественные силы отеля начинают влиять на Джека, постепенно превращая его из любящего отца в безумного убийцу.',
+    views:19800, country:'США, Великобритания', duration:'2 часа 26 мин', type:'movie', episodes:1,
+    studio:'Warner Bros. Pictures, Hawk Films, Peregrine Productions',
+    actors:'Джек Николсон, Шелли Дюваль, Дэнни Ллойд, Скэтмэн Крозерс, Барри Нельсон, Филип Стоун, Джо Тёркел',
+    dubbing:'Русский дубляж (Союз-Видео), оригинал, субтитры',
+    pros:'Атмосфера медленного нарастающего ужаса, легендарная игра Джека Николсона, гениальная операторская работа Стэнли Кубрика, культовые сцены ("Вот Джонни!", девочки-близнецы)',
+    cons:'Медленный темп может оттолкнуть зрителей, отход от книги Стивена Кинга, некоторые сцены слишком абстрактны',
+    schedule:'', related:[]
+  },
+  {
+    id:10, title:'Назад в будущее', category:'comedy', year:1985, rating:0,
+    poster:'https://picsum.photos/seed/backfuture/300/450', video:'',
+    desc:'Марти Макфлай — обычный американский подросток, который случайно отправляется в прошлое на машине времени, изобретённой его эксцентричным другом-учёным доктором Эмметтом Брауном. Он попадает в 1955 год, застревает там и вынужден искать молодого Дока, чтобы починить машину времени. Но главная проблема — Марти встречает свою мать Лоррейн, которая влюбляется в него вместо его отца Джорджа. Марти должен сделать так, чтобы его родители влюбились друг в друга, иначе он никогда не родится.',
+    views:36700, country:'США', duration:'1 час 56 мин', type:'movie', episodes:1,
+    studio:'Universal Pictures, Amblin Entertainment',
+    actors:'Майкл Дж. Фокс, Кристофер Ллойд, Лиа Томпсон, Криспин Гловер, Томас Ф. Уилсон, Клаудия Уэллс',
+    dubbing:'Русский дубляж (Невафильм), оригинал, субтитры',
+    pros:'Весёлый и динамичный сюжет, культовый статус, отличная химия между Майклом Дж. Фоксом и Кристофером Ллойдом, умная игра с временными парадоксами',
+    cons:'Спецэффекты выглядят устаревшими по современным меркам, некоторые временные линии не выдерживают критики, типичные клише 80-х',
+    schedule:'', related:[]
+  },
+  {
+    id:11, title:'Гладиатор', category:'action', year:2000, rating:0,
+    poster:'https://picsum.photos/seed/gladiator/300/450', video:'',
+    desc:'Римский генерал Максимус — любимец армии и народа. Когда император Марк Аврелий решает передать власть ему, а не своему сыну Коммоду, принц убивает отца и приказывает казнить Максимуса. Генерал чудом выживает, но теряет семью. Попав в рабство, он становится гладиатором — бойцом арены, чья сила и харизма завоёвывают сердца римской толпы. Максимус начинает свой путь мести против Коммода, который узурпировал трон и разрушил его жизнь.',
+    views:33400, country:'США, Великобритания', duration:'2 часа 35 мин', type:'movie', episodes:1,
+    studio:'DreamWorks Pictures, Universal Pictures, Scott Free Productions',
+    actors:'Рассел Кроу, Хоакин Феникс, Конни Нильсен, Оливер Рид, Дерек Джекоби, Джимон Хонсу, Ричард Харрис',
+    dubbing:'Русский дубляж (Невафильм), оригинал, субтитры',
+    pros:'Эпические масштабы и бои на арене, мощная драматическая история мести, блестящая игра Хоакина Феникса, великолепные костюмы и декорации',
+    cons:'Исторические неточности (Коммод не убивал отца), чрезмерная жестокость боёв, некоторые персонажи одномерны',
+    schedule:'', related:[]
+  },
+  {
+    id:12, title:'Интерстеллар', category:'scifi', year:2014, rating:0,
+    poster:'https://picsum.photos/seed/interstellar/300/450', video:'',
+    desc:'В недалёком будущем Земля страдает от глобального изменения климата: пыльные бури уничтожают урожаи, человечество стоит на грани вымирания. Бывший пилот НАСА Джозеф Купер работает фермером, воспитывая двоих детей. Он случайно находит секретную базу НАСА, где учёные под руководством профессора Бранда разрабатывают план спасения человечества через червоточину, открывшуюся возле Сатурна. Купер отправляется в опасное путешествие через червоточину в поисках нового дома для человечества, оставив на Земле дочь Мёрф.',
+    views:44500, country:'США, Великобритания', duration:'2 часа 49 мин', type:'movie', episodes:1,
+    studio:'Paramount Pictures, Warner Bros. Pictures, Legendary Pictures, Syncopy',
+    actors:'Мэттью МакКонахи, Энн Хэтэуэй, Джессика Честейн, Маккензи Фой, Майкл Кейн, Мэтт Дэймон, Тимоти Шаламе',
+    dubbing:'Русский дубляж (Pythagor Studio), оригинал, субтитры',
+    pros:'Научная точность при консультации Кипа Торна, глубокая эмоциональная связь отца и дочери, потрясающие визуальные эффекты (чёрная дыра Гаргантюа), музыка Ханса Циммера',
+    cons:'Слишком сложные научные концепции для широкой аудитории, длинный хронометраж, финал вызывает споры среди зрителей',
+    schedule:'', related:[3]
+  },
+  {
+    id:13, title:'Ведьмак', category:'adventure', year:2019, rating:0,
+    poster:'https://picsum.photos/seed/witcher/300/450', video:'',
+    desc:'Геральт из Ривии — одинокий охотник на чудовищ, известный как ведьмак, бродит по Континенту, где люди часто оказываются злее чудовищ. Его судьба переплетается с могущественной чародейкой Йеннифэр из Венгерберга и принцессой Цириллой, чьё предназначение связано с древним пророчеством. Сериал рассказывает нелинейную историю о судьбе, семье и выборе в мире, где зло и добро не всегда различимы. Каждая серия погружает зрителя в новое приключение полное магии, интриг и моральных дилемм.',
+    views:89200, country:'США, Польша', duration:'1 час', type:'series', episodes:8,
+    studio:'Netflix, Platige Image, Sean Daniel Company',
+    actors:'Генри Кавилл, Анья Чалотра, Фрейя Аллан, Джои Бэти, Мими Ндивени, Махеш Джаду, Эamon Фаррен',
+    dubbing:'Русская озвучка (Netflix), английский оригинал, субтитры на 20+ языков',
+    pros:'Великолепная экранизация литературного первоисточника, потрясающие боевые сцены с мечами, глубокий мир славянской мифологии, харизматичная игра Генри Кавилла',
+    cons:'Нелинейное повествование может запутать в начале, некоторые отклонения от книг, второстепенные сюжетные линии иногда тормозят основную историю',
+    schedule:'1 сезон — декабрь 2019, 2 сезон — декабрь 2021, 3 сезон — лето 2023',
+    related:[]
+  }
+];
+
+const Storage = {
+  get(k){ try{ return JSON.parse(localStorage.getItem('simba_'+k)); }catch(e){ return null; } },
+  set(k,v){ localStorage.setItem('simba_'+k, JSON.stringify(v)); },
+  init(){
+    if(!this.get('movies')) this.set('movies', DEFAULT_MOVIES);
+    if(!this.get('cats')) this.set('cats', DEFAULT_CATS);
+    if(!this.get('users')) this.set('users', [{id:1, name:'Администратор', email:'admin@simba.dm', password:'admin123', role:'admin', created: new Date().toISOString(), avatar:''}]);
+    if(!this.get('favs')) this.set('favs', {});
+    if(!this.get('ratings')) this.set('ratings', {});
+    if(!this.get('userRatings')) this.set('userRatings', {});
+    if(!this.get('comments')) this.set('comments', []);
+    if(!this.get('favoriteActors')) this.set('favoriteActors', {});
+    if(!this.get('settings')) this.set('settings', {});
+  }
+};
+Storage.init();
+
+// ================== STATE ==================
+let user = Storage.get('user') || null;
+let curCat = 'all';
+let curMovie = null;
+let curAdmin = 'dash';
+let curProfileTab = 'fav';
+let pendingRating = { movieId: null, score: 0 };
+let uploadedFiles = { poster: null, video: null };
+let replyToComment = null;
+let cats = Storage.get('cats') || [];
+
+// ================== NAVIGATION ==================
+function go(page, params){
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  const el = document.getElementById('p-'+page);
+  if(el) el.classList.add('active');
+  const btn = document.querySelector('.nav-btn[data-page="'+page+'"]');
+  if(btn) btn.classList.add('active');
+  window.scrollTo({top:0, behavior:'smooth'});
+
+  if(page==='home') renderHome();
+  if(page==='catalog') { initFilters(); renderCatalog(); }
+  if(page==='categories') renderCategories();
+  if(page==='movie') renderDetail(params?.id);
+  if(page==='admin') renderAdmin();
+  if(page==='profile') renderProfile();
+  if(page==='search') renderSearch(params?.query);
+}
+
+// ================== LIVE SEARCH DROPDOWN ==================
+function liveSearch(q){
+  const dd = document.getElementById('searchDropdown');
+  const list = document.getElementById('searchLiveList');
+  if(!q.trim()){ dd.classList.remove('show'); return; }
+  const movies = Storage.get('movies')||[];
+  const res = movies.filter(m=> m.title.toLowerCase().includes(q.toLowerCase()) || (m.actors||'').toLowerCase().includes(q.toLowerCase()) ).slice(0,6);
+  if(res.length===0){
+    list.innerHTML = '<div class="search-empty">Ничего не найдено</div>';
+    dd.classList.add('show');
+    return;
+  }
+  list.innerHTML = res.map(m=>{
+    const typeLabel = m.type==='series' ? (m.episodes+' серий') : 'Фильм';
+    const shortDesc = m.desc.length > 80 ? m.desc.substring(0,80) + '...' : m.desc;
+    return `<div class="search-item" onclick="go('movie',{id:${m.id}}); hideSearchDropdown();">
+      <img src="${m.poster}" alt="${m.title}" onerror="this.src='https://via.placeholder.com/52x72/0c1e1c/d4a574?text=?'">
+      <div class="search-item-info">
+        <div class="search-item-title">${m.title}</div>
+        <div class="search-item-meta">
+          <span class="search-item-country">${m.country || '—'}</span>
+          <span class="dot"></span>
+          <span>${m.year}</span>
+          <span class="dot"></span>
+          <span>${typeLabel}</span>
+        </div>
+        <div class="search-item-desc">${shortDesc}</div>
+      </div>
+    </div>`;
+  }).join('');
+  dd.classList.add('show');
+}
+function hideSearchDropdown(){ document.getElementById('searchDropdown').classList.remove('show'); }
+function switchSearchTab(btn, tab){
+  document.querySelectorAll('.search-tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  if(tab==='actors'){
+    document.getElementById('searchLiveList').innerHTML = '<div class="search-empty">Поиск по актёрам в разработке</div>';
+  } else {
+    liveSearch(document.getElementById('searchInput').value);
+  }
+}
+
+// ================== RENDERERS ==================
+function getAvgRating(movieId){
+  const ratings = Storage.get('ratings') || {};
+  const movieRatings = ratings[movieId];
+  if(!movieRatings) return 0;
+  const scores = Object.values(movieRatings);
+  if(!scores.length) return 0;
+  return (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1);
+}
+function getRatingCount(movieId){
+  const ratings = Storage.get('ratings') || {};
+  const movieRatings = ratings[movieId];
+  return movieRatings ? Object.keys(movieRatings).length : 0;
+}
+function getUserRating(movieId){
+  if(!user) return 0;
+  const userRatings = Storage.get('userRatings') || {};
+  return userRatings[user.id]?.[movieId] || 0;
+}
+
+function card(m){
+  const cats = Storage.get('cats')||[];
+  const cname = cats.find(c=>c.id===m.category)?.name || m.category;
+  const avg = getAvgRating(m.id);
+  return `<div class="card" onclick="go('movie',{id:${m.id}})">
+    <div class="card-img">
+      <img src="${m.poster}" alt="${m.title}" loading="lazy" onerror="this.src='https://via.placeholder.com/300x450/0c1e1c/d4a574?text=${encodeURIComponent(m.title)}'">
+      <div class="card-play"><div class="card-play-btn"><svg viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg></div></div>
+      <div class="card-rating"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>${avg>0?avg:'—'}</div>
+    </div>
+    <div class="card-body">
+      <div class="card-title">${m.title}</div>
+      <div class="card-meta">
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${m.year}</span>
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>${m.views.toLocaleString()}</span>
+      </div>
+      <span class="card-tag">${cname}</span>
+    </div>
+  </div>`;
+}
+
+function renderHome(){
+  const movies = Storage.get('movies')||[];
+  const trending = [...movies].sort((a,b)=>b.views-a.views).slice(0,6);
+  const newest = [...movies].sort((a,b)=>b.year-a.year).slice(0,6);
+  document.getElementById('homeTrending').innerHTML = trending.map(card).join('');
+  document.getElementById('homeNew').innerHTML = newest.map(card).join('');
+  document.getElementById('hMovies').textContent = movies.length;
+  document.getElementById('hCats').textContent = (Storage.get('cats')||[]).length;
+  document.getElementById('hUsers').textContent = (Storage.get('users')||[]).length;
+}
+
+function renderCatalog(){
+  const movies = Storage.get('movies')||[];
+  let list = curCat==='all' ? movies : movies.filter(m=>m.category===curCat);
+  const fType = document.getElementById('fType')?.value || 'all';
+  const fGenre = document.getElementById('fGenre')?.value || 'all';
+  const fCountry = document.getElementById('fCountry')?.value || 'all';
+  const fYearFromVal = document.getElementById('fYearFrom')?.value;
+  const fYearToVal = document.getElementById('fYearTo')?.value;
+  const fYearFrom = fYearFromVal === 'all' ? 0 : parseInt(fYearFromVal) || 0;
+  const fYearTo = parseInt(fYearToVal) || 9999;
+  if(fType!=='all') list = list.filter(m=>m.type===fType);
+  if(fGenre!=='all') list = list.filter(m=>m.category===fGenre);
+  if(fCountry !== 'all') list = list.filter(m=>(m.country||'').toLowerCase().includes(fCountry.toLowerCase()));
+  if(fYearFrom) list = list.filter(m=>m.year>=fYearFrom);
+  if(fYearTo!==9999) list = list.filter(m=>m.year<=fYearTo);
+
+  const cats = Storage.get('cats')||[];
+  document.getElementById('catPills').innerHTML =
+    `<button class="pill ${curCat==='all'?'active':''}" onclick="setCat('all')">Все жанры</button>` +
+    cats.map(c=>`<button class="pill ${curCat===c.id?'active':''}" onclick="setCat('${c.id}')">${c.name}</button>`).join('');
+  document.getElementById('catalogGrid').innerHTML = list.map(card).join('');
+  document.getElementById('catalogEmpty').classList.toggle('hide', list.length>0);
+}
+function setCat(c){ curCat=c; renderCatalog(); }
+
+function initFilters(){
+  if(window.filtersInited) return;
+  const cats = Storage.get('cats')||[];
+  const sel = document.getElementById('fGenre');
+  if(sel){
+    sel.innerHTML = '<option value="all">Все жанры</option>' + cats.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  }
+  const yf = document.getElementById('fYearFrom');
+  const yt = document.getElementById('fYearTo');
+  if(yf && !yf.value) yf.value = 'all';
+  if(yt && !yt.value) yt.value = '2026';
+  window.filtersInited = true;
+}
+function applyFilters(){ renderCatalog(); }
+function resetFilters(){
+  document.getElementById('fType').value='all';
+  document.getElementById('fGenre').value='all';
+  document.getElementById('fCountry').value='all';
+  document.getElementById('fYearFrom').value='all';
+  document.getElementById('fYearTo').value='2026';
+  curCat='all';
+  renderCatalog();
+}
+
+function renderCategories(){
+  const cats = Storage.get('cats')||[];
+  const movies = Storage.get('movies')||[];
+  document.getElementById('catSections').innerHTML = cats.map(c=>{
+    const ms = movies.filter(m=>m.category===c.id).slice(0,4);
+    return `<div style="margin-bottom:40px;">
+      <div class="sec-head"><h3 style="font-size:18px;">${c.name}</h3><span class="sec-link" onclick="setCat('${c.id}'); go('catalog');">Смотреть все</span></div>
+      ${ms.length?`<div class="grid">${ms.map(card).join('')}</div>`:`<p style="color:var(--text-faint); font-size:13px;">В этом жанре пока нет фильмов</p>`}
+    </div>`;
+  }).join('');
+}
+
+function renderStars(movieId){
+  const userRating = getUserRating(movieId);
+  const avg = getAvgRating(movieId);
+  const cnt = getRatingCount(movieId);
+  let html = '';
+  for(let i=1; i<=10; i++){
+    const filled = i <= (userRating || Math.round(avg));
+    const isUser = userRating > 0 && i <= userRating;
+    html += `<svg class="star ${filled?'filled':''} ${isUser?'user-filled':''}" viewBox="0 0 24 24" fill="${filled?'currentColor':'none'}" stroke="currentColor" stroke-width="1.5" onclick="rateMovie(${movieId}, ${i})" onmouseenter="hoverStar(${i})" onmouseleave="resetStars(${movieId})">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+    </svg>`;
+  }
+  html += `<span class="rating-value">${avg>0?avg:'—'}</span><span class="rating-count">(${cnt} оценок)</span>`;
+  return html;
+}
+
+let hoverRating = 0;
+function hoverStar(val){ hoverRating = val; }
+function resetStars(movieId){
+  hoverRating = 0;
+  const el = document.getElementById('starRating');
+  if(el) el.innerHTML = renderStars(movieId);
+}
+
+function rateMovie(movieId, score){
+  if(!user){ openModal('login'); toast('Войдите, чтобы оценить','err'); return; }
+  const userRatings = Storage.get('userRatings') || {};
+  const alreadyRated = userRatings[user.id]?.[movieId];
+
+  if(alreadyRated){
+    pendingRating = { movieId, score };
+    document.getElementById('confirmBg').classList.add('show');
+    return;
+  }
+  saveRating(movieId, score);
+}
+
+function saveRating(movieId, score){
+  const ratings = Storage.get('ratings') || {};
+  const userRatings = Storage.get('userRatings') || {};
+
+  if(!ratings[movieId]) ratings[movieId] = {};
+  ratings[movieId][user.id] = score;
+
+  if(!userRatings[user.id]) userRatings[user.id] = {};
+  userRatings[user.id][movieId] = score;
+
+  Storage.set('ratings', ratings);
+  Storage.set('userRatings', userRatings);
+
+  const el = document.getElementById('starRating');
+  if(el) el.innerHTML = renderStars(movieId);
+  toast(`Вы поставили оценку ${score}/10`, 'ok');
+}
+
+function confirmAction(){
+  if(pendingRating.movieId){
+    saveRating(pendingRating.movieId, pendingRating.score);
+    closeConfirm();
+    toast('Оценка изменена!', 'ok');
+  }
+}
+function closeConfirm(){
+  document.getElementById('confirmBg').classList.remove('show');
+  pendingRating = { movieId: null, score: 0 };
+}
+
+function renderDetail(id){
+  let movies = Storage.get('movies')||[];
+  const movieIndex = movies.findIndex(m=>m.id===id);
+  if(movieIndex === -1) return go('catalog');
+
+  movies[movieIndex].views = (movies[movieIndex].views || 0) + 1;
+  Storage.set('movies', movies);
+  curMovie = movies[movieIndex];
+
+  const cats = Storage.get('cats')||[];
+  const cname = cats.find(c=>c.id===curMovie.category)?.name || curMovie.category;
+
+  document.getElementById('dTitle').textContent = curMovie.title;
+  document.getElementById('dDesc').textContent = curMovie.desc;
+  document.getElementById('dPoster').querySelector('img').src = curMovie.poster;
+  document.getElementById('dHeroBg').style.backgroundImage = `url(${curMovie.poster})`;
+
+  const typeLabel = curMovie.type === 'series' ? 'Сериал' : 'Фильм';
+
+  document.getElementById('dMeta').innerHTML = `
+    <span class="rating"><svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>${getAvgRating(curMovie.id)>0?getAvgRating(curMovie.id):'—'}</span>
+    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${curMovie.year}</span>
+    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>${curMovie.views.toLocaleString()}</span>
+    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${curMovie.duration || '—'}</span>
+    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${curMovie.country || '—'}</span>
+    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>${typeLabel}</span>`;
+
+  const sr = document.getElementById('starRating');
+  if(sr) sr.innerHTML = renderStars(curMovie.id);
+
+  const actors = curMovie.actors ? curMovie.actors.split(',').map(a=>a.trim()).filter(Boolean).map(a=>`<span class="actor" onclick="addActorToFavorites('${a.replace(/'/g,"\'")}'); toast('Актёр добавлен в избранное','ok');">${a}</span>`).join('') : '—';
+  const infoTable = document.getElementById('infoTable');
+  if(infoTable){
+    infoTable.innerHTML = `
+      <div class="info-row"><div class="info-label">Страна</div><div class="info-value">${curMovie.country || '—'}</div></div>
+      <div class="info-row"><div class="info-label">Год</div><div class="info-value">${curMovie.year}</div></div>
+      <div class="info-row"><div class="info-label">Жанр</div><div class="info-value">${cname}</div></div>
+      <div class="info-row"><div class="info-label">Время</div><div class="info-value">${curMovie.duration || '—'}</div></div>
+      <div class="info-row"><div class="info-label">Тип</div><div class="info-value">${typeLabel} ${curMovie.type==='series' ? '('+curMovie.episodes+' серий)' : ''}</div></div>
+      <div class="info-row"><div class="info-label">Канал / Студия</div><div class="info-value">${curMovie.studio || '—'}</div></div>
+      <div class="info-row"><div class="info-label">Озвучка</div><div class="info-value">${curMovie.dubbing || '—'}</div></div>
+      <div class="info-row"><div class="info-label">В ролях</div><div class="info-value">${actors} <span class="more">Кликните на актёра, чтобы добавить</span></div></div>
+    `;
+  }
+
+  const pros = curMovie.pros ? curMovie.pros.split(',').map(s=>s.trim()).filter(Boolean) : [];
+  const cons = curMovie.cons ? curMovie.cons.split(',').map(s=>s.trim()).filter(Boolean) : [];
+  const prosCons = document.getElementById('prosCons');
+  if(prosCons){
+    prosCons.innerHTML = `
+      ${pros.length ? `<div class="pros-box"><h4>Плюсы</h4><ul>${pros.map(p=>`<li>${p}</li>`).join('')}</ul></div>` : ''}
+      ${cons.length ? `<div class="cons-box"><h4>Минусы</h4><ul>${cons.map(c=>`<li>${c}</li>`).join('')}</ul></div>` : ''}
+    `;
+    if(!pros.length && !cons.length) prosCons.innerHTML = '';
+  }
+
+  const scheduleBox = document.getElementById('scheduleBox');
+  const scheduleContent = document.getElementById('scheduleContent');
+  if(scheduleBox && scheduleContent){
+    if(curMovie.schedule){
+      scheduleBox.classList.remove('hide');
+      scheduleContent.innerHTML = `<div class="schedule-item"><span class="day">Расписание:</span> ${curMovie.schedule}</div>`;
+    } else {
+      scheduleBox.classList.add('hide');
+    }
+  }
+
+  const relatedSection = document.getElementById('relatedSection');
+  const relatedGrid = document.getElementById('relatedGrid');
+  if(relatedSection && relatedGrid){
+    if(curMovie.related && curMovie.related.length > 0){
+      const relatedMovies = movies.filter(m => curMovie.related.includes(m.id));
+      if(relatedMovies.length > 0){
+        relatedSection.classList.remove('hide');
+        relatedGrid.innerHTML = relatedMovies.map(m => `
+          <div class="related-card" onclick="go('movie',{id:${m.id}})">
+            <img src="${m.poster}" alt="${m.title}" onerror="this.src='https://via.placeholder.com/160x240/0c1e1c/d4a574?text=${encodeURIComponent(m.title)}'">
+            <div class="rc-body">
+              <div class="rc-title">${m.title}</div>
+              <div class="rc-meta">${m.year} · ${m.type==='series'?m.episodes+' серий':'Фильм'}</div>
+            </div>
+          </div>
+        `).join('');
+      } else {
+        relatedSection.classList.add('hide');
+      }
+    } else {
+      relatedSection.classList.add('hide');
+    }
+  }
+
+  const favs = Storage.get('favs')||{};
+  const uf = user ? (favs[user.id]||[]) : [];
+  const isFav = uf.includes(id);
+  document.getElementById('dFavText').textContent = isFav ? 'В избранном' : 'В избранное';
+
+  const pw = document.getElementById('playerWrap');
+  if(pw){
+    pw.innerHTML = `<div class="player-placeholder">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></svg>
+      <p>Нажмите «Смотреть фильм» для воспроизведения</p>
+    </div>`;
+  }
+
+  renderComments(id);
+  updateCommentForm();
+}
+
+function playMovie(){
+  if(!curMovie) return;
+  const pw = document.getElementById('playerWrap');
+  const src = curMovie.video || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+  if(pw){
+    pw.innerHTML = `<video controls autoplay playsinline style="width:100%;height:100%;object-fit:contain;background:#000;"><source src="${src}" type="video/mp4"></video>`;
+    toast('Воспроизведение началось','ok');
+  }
+}
+
+// ================== COMMENTS ==================
+function updateCommentForm(){
+  const guestBox = document.getElementById('guestToggleBox');
+  const guestInput = document.getElementById('guestName');
+  const hint = document.getElementById('commentHint');
+  if(user){
+    guestBox.classList.add('hide');
+    guestInput.classList.add('hide');
+    hint.textContent = 'Комментируйте как ' + user.name;
+  } else {
+    guestBox.classList.remove('hide');
+    hint.textContent = 'Войдите или напишите как гость';
+  }
+}
+function toggleGuestName(){
+  const chk = document.getElementById('asGuest');
+  const inp = document.getElementById('guestName');
+  if(chk.checked) inp.classList.remove('hide');
+  else inp.classList.add('hide');
+}
+function submitComment(){
+  const text = document.getElementById('commentText').value.trim();
+  if(!text){ toast('Введите текст комментария','err'); return; }
+  if(!curMovie) return;
+  const isGuest = document.getElementById('asGuest').checked;
+  let userName, userId, avatar;
+  if(user && !isGuest){
+    userName = user.name; userId = user.id; avatar = user.avatar || '';
+  } else {
+    const gName = document.getElementById('guestName').value.trim();
+    userName = gName || 'Гость'; userId = null; avatar = '';
+  }
+  const comments = Storage.get('comments') || [];
+  comments.push({
+    id: Date.now(),
+    movieId: curMovie.id,
+    userId,
+    userName,
+    text,
+    date: new Date().toISOString(),
+    replies: []
+  });
+  Storage.set('comments', comments);
+  document.getElementById('commentText').value = '';
+  renderComments(curMovie.id);
+  toast('Комментарий добавлен','ok');
+}
+function getCommentAvatar(c){
+  if(c.userId){
+    const users = Storage.get('users')||[];
+    const u = users.find(x=>x.id===c.userId);
+    if(u && u.avatar) return `<img src="${u.avatar}" alt="">`;
+    return c.userName ? c.userName.charAt(0).toUpperCase() : 'U';
+  }
+  return c.userName ? c.userName.charAt(0).toUpperCase() : 'G';
+}
+function renderComments(movieId){
+  const comments = (Storage.get('comments')||[]).filter(c=>c.movieId===movieId).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  document.getElementById('commentsCount').textContent = '(' + comments.length + ')';
+  const container = document.getElementById('commentsList');
+  if(!container) return;
+  container.innerHTML = comments.map(c=>`
+    <div class="comment" id="comment-${c.id}">
+      <div class="comment-header">
+        <div class="comment-avatar">
+          ${getCommentAvatar(c)}
+        </div>
+        <div class="comment-meta">
+          <span class="comment-name">${c.userName} ${c.userId===null ? '<span class="guest-badge">Гость</span>' : ''}</span>
+          <span class="comment-date">${new Date(c.date).toLocaleString('ru-RU')}</span>
+        </div>
+      </div>
+      <div class="comment-text">${escapeHtml(c.text)}</div>
+      <div class="comment-footer">
+        <button class="comment-btn" onclick="showReplyForm(${c.id})">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Ответить
+        </button>
+      </div>
+      <div class="replies" id="replies-${c.id}">
+        ${(c.replies||[]).map(r=>`
+          <div class="comment" style="margin-bottom:8px; padding:12px;">
+            <div class="comment-header">
+              <div class="comment-avatar" style="width:28px;height:28px;font-size:11px;">${getCommentAvatar(r)}</div>
+              <div class="comment-meta">
+                <span class="comment-name" style="font-size:13px;">${r.userName} ${r.userId===null ? '<span class="guest-badge">Гость</span>' : ''}</span>
+                <span class="comment-date">${new Date(r.date).toLocaleString('ru-RU')}</span>
+              </div>
+            </div>
+            <div class="comment-text" style="font-size:13px;">${escapeHtml(r.text)}</div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="reply-form hide" id="replyForm-${c.id}">
+        <textarea id="replyText-${c.id}" placeholder="Ваш ответ..."></textarea>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          ${!user ? `<input type="text" id="replyName-${c.id}" placeholder="Ваше имя" style="background:var(--deep); border:1px solid rgba(212,165,116,0.12); border-radius:8px; padding:8px 12px; color:var(--text); font-size:13px; outline:none; font-family:inherit; width:160px;">` : ''}
+          <button class="btn btn-gold btn-sm" onclick="submitReply(${c.id})">Отправить</button>
+          <button class="btn btn-ghost btn-sm" onclick="hideReplyForm(${c.id})">Отмена</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+  if(comments.length===0){
+    container.innerHTML = '<p style="color:var(--text-faint); font-size:13px; text-align:center; padding:20px;">Пока нет комментариев. Будьте первым!</p>';
+  }
+}
+function showReplyForm(commentId){
+  document.querySelectorAll('.reply-form').forEach(el=>el.classList.add('hide'));
+  document.getElementById('replyForm-'+commentId).classList.remove('hide');
+}
+function hideReplyForm(commentId){
+  document.getElementById('replyForm-'+commentId).classList.add('hide');
+}
+function submitReply(commentId){
+  const text = document.getElementById('replyText-'+commentId).value.trim();
+  if(!text){ toast('Введите текст ответа','err'); return; }
+  let userName, userId;
+  if(user){
+    userName = user.name; userId = user.id;
+  } else {
+    const gName = document.getElementById('replyName-'+commentId)?.value.trim();
+    userName = gName || 'Гость'; userId = null;
+  }
+  const comments = Storage.get('comments') || [];
+  const c = comments.find(x=>x.id===commentId);
+  if(c){
+    if(!c.replies) c.replies = [];
+    c.replies.push({userId, userName, text, date: new Date().toISOString()});
+    Storage.set('comments', comments);
+    renderComments(curMovie.id);
+    toast('Ответ добавлен','ok');
+  }
+}
+function escapeHtml(text){
+  const d = document.createElement('div');
+  d.textContent = text;
+  return d.innerHTML;
+}
+
+// ================== FAVORITE ACTORS ==================
+function addActorToFavorites(name){
+  if(!user) return;
+  const favActors = Storage.get('favoriteActors') || {};
+  if(!favActors[user.id]) favActors[user.id] = [];
+  if(!favActors[user.id].includes(name)){
+    favActors[user.id].push(name);
+    Storage.set('favoriteActors', favActors);
+  }
+}
+function renderFavoriteActors(){
+  if(!user) return;
+  const favActors = Storage.get('favoriteActors') || {};
+  const list = favActors[user.id] || [];
+  const container = document.getElementById('prActorsGrid');
+  const empty = document.getElementById('prEmptyActors');
+  document.getElementById('prActors').textContent = list.length;
+  if(list.length===0){
+    container.innerHTML = '';
+    empty.classList.remove('hide');
+  } else {
+    empty.classList.add('hide');
+    container.innerHTML = list.map(a=>`
+      <div style="background:var(--surface); border:1px solid rgba(212,165,116,0.1); border-radius:12px; padding:12px 18px; display:flex; align-items:center; gap:10px; cursor:pointer; transition:all 0.3s;" onmouseover="this.style.borderColor='var(--sand)'" onmouseout="this.style.borderColor='rgba(212,165,116,0.1)'" onclick="doSearch('${a.replace(/'/g,"\'")}'); go('search',{query:'${a.replace(/'/g,"\'")}'});">
+        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--sand),var(--mint));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:var(--night);">${a.charAt(0).toUpperCase()}</div>
+        <span style="font-size:14px; font-weight:600;">${a}</span>
+      </div>
+    `).join('');
+  }
+}
+
+// ================== SEARCH ==================
+function renderSearch(q){
+  document.getElementById('sQuery').textContent = q;
+  const movies = Storage.get('movies')||[];
+  const res = movies.filter(m=>
+    m.title.toLowerCase().includes(q.toLowerCase()) ||
+    m.desc.toLowerCase().includes(q.toLowerCase()) ||
+    (m.country||'').toLowerCase().includes(q.toLowerCase()) ||
+    (m.actors||'').toLowerCase().includes(q.toLowerCase())
+  );
+
+  const container = document.getElementById('sResults');
+  if(container){
+    container.innerHTML = res.map(m => {
+      const cats = Storage.get('cats')||[];
+      const cname = cats.find(c=>c.id===m.category)?.name || m.category;
+      const avg = getAvgRating(m.id);
+      const typeLabel = m.type==='series' ? (m.episodes+' серий') : 'Фильм';
+      return `
+        <div class="search-card" onclick="go('movie',{id:${m.id}})">
+          <img src="${m.poster}" alt="${m.title}" onerror="this.src='https://via.placeholder.com/120x180/0c1e1c/d4a574?text=${encodeURIComponent(m.title)}'">
+          <div class="sc-body">
+            <h3>${m.title}</h3>
+            <div class="sc-meta">
+              <span class="sc-country">${m.country || '—'}</span>
+              <span>${m.year}</span>
+              <span>${cname}</span>
+              <span><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>${avg>0?avg:'—'}</span>
+            </div>
+            <p class="sc-desc">${m.desc}</p>
+            <div class="sc-episodes">${typeLabel} · ${m.duration || ''}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+  document.getElementById('sEmpty').classList.toggle('hide', res.length>0);
+}
+function doSearch(v){ v=v.trim(); if(v){ go('search',{query:v}); hideSearchDropdown(); } }
+
+// ================== PROFILE & SETTINGS ==================
+function renderProfile(){
+  if(!user) return go('home');
+  document.getElementById('prAvaText').textContent = user.name.charAt(0).toUpperCase();
+  if(user.avatar){
+    document.getElementById('prAvaImg').src = user.avatar;
+    document.getElementById('prAvaImg').classList.remove('hide');
+    document.getElementById('prAvaText').classList.add('hide');
+  } else {
+    document.getElementById('prAvaImg').classList.add('hide');
+    document.getElementById('prAvaText').classList.remove('hide');
+  }
+  document.getElementById('prName').textContent = user.name;
+  document.getElementById('prEmail').textContent = user.email;
+  const favs = Storage.get('favs')||{};
+  const uf = favs[user.id]||[];
+  const movies = Storage.get('movies')||[];
+  const fmovies = movies.filter(m=>uf.includes(m.id));
+  document.getElementById('prFav').textContent = fmovies.length;
+  const userRatings = Storage.get('userRatings')||{};
+  document.getElementById('prRated').textContent = userRatings[user.id] ? Object.keys(userRatings[user.id]).length : 0;
+
+  switchProfileTab(curProfileTab, true);
+
+  document.getElementById('prFavGrid').innerHTML = fmovies.map(card).join('');
+  document.getElementById('prEmptyFav').classList.toggle('hide', fmovies.length>0);
+
+  const ratedIds = userRatings[user.id] ? Object.keys(userRatings[user.id]).map(Number) : [];
+  const ratedMovies = movies.filter(m=>ratedIds.includes(m.id));
+  document.getElementById('prRatedGrid').innerHTML = ratedMovies.map(card).join('');
+  document.getElementById('prEmptyRated').classList.toggle('hide', ratedMovies.length>0);
+
+  renderFavoriteActors();
+}
+function switchProfileTab(tab, force=false){
+  if(!force) curProfileTab = tab;
+  document.querySelectorAll('.profile-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('pt-'+tab).classList.add('active');
+  document.getElementById('profileFav').classList.toggle('hide', tab!=='fav');
+  document.getElementById('profileActors').classList.toggle('hide', tab!=='actors');
+  document.getElementById('profileRated').classList.toggle('hide', tab!=='rated');
+}
+
+function openSettings(){
+  if(!user) return;
+  document.getElementById('settingsBg').classList.add('show');
+  document.getElementById('setName').value = user.name;
+  document.getElementById('setEmail').value = user.email;
+  document.getElementById('setPass').value = '';
+  const ava = document.getElementById('settingsAva');
+  document.getElementById('settingsAvaText').textContent = user.name.charAt(0).toUpperCase();
+  if(user.avatar){
+    document.getElementById('settingsAvaImg').src = user.avatar;
+    document.getElementById('settingsAvaImg').classList.remove('hide');
+    document.getElementById('settingsAvaText').classList.add('hide');
+  } else {
+    document.getElementById('settingsAvaImg').classList.add('hide');
+    document.getElementById('settingsAvaText').classList.remove('hide');
+  }
+}
+function closeSettings(){ document.getElementById('settingsBg').classList.remove('show'); }
+function handleSettingsAvatar(input){
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    document.getElementById('settingsAvaImg').src = e.target.result;
+    document.getElementById('settingsAvaImg').classList.remove('hide');
+    document.getElementById('settingsAvaText').classList.add('hide');
+    toast('Аватар загружен','ok');
+  };
+  reader.readAsDataURL(file);
+}
+function saveSettings(e){
+  e.preventDefault();
+  if(!user) return;
+  const name = document.getElementById('setName').value.trim();
+  const email = document.getElementById('setEmail').value.trim();
+  const pass = document.getElementById('setPass').value;
+  const img = document.getElementById('settingsAvaImg');
+  const avatar = img.classList.contains('hide') ? '' : img.src;
+  if(!name || !email){ toast('Заполните обязательные поля','err'); return; }
+
+  const users = Storage.get('users')||[];
+  const u = users.find(x=>x.id===user.id);
+  if(u){
+    u.name = name; u.email = email; u.avatar = avatar;
+    if(pass) u.password = pass;
+    Storage.set('users', users);
+    user = u; Storage.set('user', u);
+    updateAuth();
+    renderProfile();
+    closeSettings();
+    toast('Настройки сохранены','ok');
+  }
+}
+
+// ================== ADMIN ==================
+function renderAdmin(){
+  if(!user || user.role!=='admin'){ toast('Доступ запрещён','err'); return go('home'); }
+  const movies = Storage.get('movies')||[];
+  const users = Storage.get('users')||[];
+  const cats = Storage.get('cats')||[];
+  const favs = Storage.get('favs')||{};
+  const tf = Object.values(favs).flat().length;
+  document.getElementById('sMovies').textContent = movies.length;
+  document.getElementById('sUsers').textContent = users.length;
+  document.getElementById('sCats').textContent = cats.length;
+  document.getElementById('sFavs').textContent = tf;
+  document.getElementById('admMoviesBody').innerHTML = movies.map(m=>{
+    const cn = cats.find(c=>c.id===m.category)?.name||m.category;
+    const avg = getAvgRating(m.id);
+    return `<tr><td><img src="${m.poster}" class="table-thumb" onerror="this.src='https://via.placeholder.com/40x56/0c1e1c/d4a574?text=?'"/></td><td><strong>${m.title}</strong></td><td>${cn}</td><td>${m.year}</td><td style="color:var(--sand); font-weight:700;">${avg>0?avg:'—'}</td><td><button class="tbtn tbtn-view" onclick="go('movie',{id:${m.id}})">Смотреть</button><button class="tbtn tbtn-del" onclick="delMovie(${m.id})">Удалить</button></td></tr>`;
+  }).join('');
+  document.getElementById('admUsersBody').innerHTML = users.map(u=>`<tr><td>${u.id}</td><td>${u.name}</td><td>${u.email}</td><td><span style="padding:3px 8px; border-radius:5px; font-size:11px; font-weight:600; background:${u.role==='admin'?'var(--sand-dim)':'rgba(255,255,255,0.05)'}; color:${u.role==='admin'?'var(--sand)':'var(--text-dim)'}">${u.role==='admin'?'Админ':'Пользователь'}</span></td><td>${new Date(u.created).toLocaleDateString('ru-RU')}</td></tr>`).join('');
+  const sel = document.getElementById('upCat');
+  if(sel) sel.innerHTML = cats.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+}
+
+// ================== FILE UPLOAD ==================
+function handleFileUpload(input, type){
+  const file = input.files[0];
+  if(!file) {
+    toast('Файл не выбран', 'err');
+    return;
+  }
+
+  // Validate file type
+  if(type === 'poster' && !file.type.startsWith('image/')){
+    toast('Выберите изображение (JPEG, PNG, WebP)', 'err');
+    input.value = '';
+    return;
+  }
+  if(type === 'video' && !file.type.startsWith('video/')){
+    toast('Выберите видео файл (MP4, WebM)', 'err');
+    input.value = '';
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function(e){
+    uploadedFiles[type] = e.target.result;
+    const preview = document.getElementById(type + 'Preview');
+    if(preview){
+      preview.classList.remove('hide');
+      preview.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${type==='poster'?'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>':'<path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>'}</svg>
+        <span>${file.name} (${(file.size/1024/1024).toFixed(1)} МБ)</span>
+        <span class="fp-clear" onclick="clearUpload('${type}'); event.stopPropagation();">Удалить</span>
+      `;
+    }
+    toast(type==='poster'?'Постер успешно загружен!':'Видео успешно загружено!', 'ok');
+  };
+  reader.onerror = function(){
+    toast('Ошибка чтения файла. Попробуйте другой файл.', 'err');
+    input.value = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearUpload(type){
+  uploadedFiles[type] = null;
+  const preview = document.getElementById(type + 'Preview');
+  if(preview){
+    preview.classList.add('hide');
+    preview.innerHTML = '';
+  }
+  const input = document.getElementById(type + 'Input');
+  if(input) {
+    input.value = '';
+    // Create new DataTransfer to truly clear the file list
+    const dt = new DataTransfer();
+    input.files = dt.files;
+  }
+  const urlInput = document.getElementById(type==='poster'?'upPoster':'upVideo');
+  if(urlInput) urlInput.value = '';
+  toast(type==='poster'?'Постер удалён':'Видео удалено', 'ok');
+}
+
+// Drag and drop setup
+function setupDragDrop(type){
+  const drop = document.getElementById(type + 'Drop');
+  const input = document.getElementById(type + 'Input');
+  if(!drop || !input) return;
+
+  drop.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    drop.classList.add('dragover');
+  });
+  drop.addEventListener('dragleave', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    drop.classList.remove('dragover');
+  });
+  drop.addEventListener('drop', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    drop.classList.remove('dragover');
+    const files = e.dataTransfer.files;
+    if(files.length){
+      const dt = new DataTransfer();
+      dt.items.add(files[0]);
+      input.files = dt.files;
+      handleFileUpload(input, type);
+    }
+  });
+}
+
+// ================== ACTIONS ==================
+function handleLogin(e){
+  e.preventDefault();
+  const email = document.getElementById('inEmail').value;
+  const pass = document.getElementById('inPass').value;
+  const users = Storage.get('users')||[];
+  const u = users.find(x=>x.email===email && x.password===pass);
+  if(u){ user=u; Storage.set('user',u); updateAuth(); closeModal(); toast(`Добро пожаловать, ${u.name}!`,'ok'); if(u.role==='admin') go('admin'); else go('home'); }
+  else toast('Неверный email или пароль','err');
+}
+function handleRegister(e){
+  e.preventDefault();
+  const name = document.getElementById('regName').value;
+  const email = document.getElementById('regEmail').value;
+  const pass = document.getElementById('regPass').value;
+  const users = Storage.get('users')||[];
+  if(users.find(x=>x.email===email)){ toast('Такой email уже зарегистрирован','err'); return; }
+  const u = {id:Date.now(), name, email, password:pass, role:'user', created:new Date().toISOString(), avatar:''};
+  users.push(u); Storage.set('users',users); user=u; Storage.set('user',u); updateAuth(); closeModal(); toast('Аккаунт создан!','ok'); go('home');
+}
+function logout(){ user=null; Storage.set('user',null); updateAuth(); toast('Вы вышли из аккаунта','ok'); go('home'); }
+function updateAuth(){
+  const auth = document.getElementById('authArea');
+  const usr = document.getElementById('userArea');
+  const navAdm = document.getElementById('navAdmin');
+  const ava = document.getElementById('userAva');
+  if(user){
+    auth.classList.add('hide'); usr.classList.remove('hide');
+    ava.innerHTML = user.avatar ? `<img src="${user.avatar}" alt="">` : user.name.charAt(0).toUpperCase();
+    if(user.role==='admin') navAdm.classList.remove('hide'); else navAdm.classList.add('hide');
+  } else {
+    auth.classList.remove('hide'); usr.classList.add('hide'); navAdm.classList.add('hide');
+  }
+}
+
+function toggleFav(){
+  if(!user){ openModal('login'); return; }
+  if(!curMovie) return;
+  const favs = Storage.get('favs')||{};
+  const uf = favs[user.id]||[];
+  const idx = uf.indexOf(curMovie.id);
+  if(idx>-1){ uf.splice(idx,1); favs[user.id]=uf; Storage.set('favs',favs); document.getElementById('dFavText').textContent='В избранное'; toast('Удалено из избранного','ok'); }
+  else { uf.push(curMovie.id); favs[user.id]=uf; Storage.set('favs',favs); document.getElementById('dFavText').textContent='В избранном'; toast('Добавлено в избранное','ok'); }
+}
+
+function handleUpload(e){
+  e.preventDefault();
+  if(!user || user.role!=='admin') return;
+  const movies = Storage.get('movies')||[];
+
+  const poster = uploadedFiles.poster || document.getElementById('upPoster').value || 'https://via.placeholder.com/300x450/0c1e1c/d4a574?text=No+Poster';
+  const videoSrc = uploadedFiles.video || document.getElementById('upVideo').value || '';
+
+  const m = {
+    id: Date.now(),
+    title: document.getElementById('upTitle').value,
+    category: document.getElementById('upCat').value,
+    year: parseInt(document.getElementById('upYear').value),
+    rating: parseFloat(document.getElementById('upRate').value) || 0,
+    poster: poster,
+    video: videoSrc,
+    desc: document.getElementById('upDesc').value,
+    views: 0,
+    country: document.getElementById('upCountry').value || 'США',
+    duration: document.getElementById('upDuration').value || '—',
+    type: document.getElementById('upType').value,
+    episodes: parseInt(document.getElementById('upEpisodes').value) || 1,
+    studio: document.getElementById('upStudio').value || '',
+    actors: document.getElementById('upActors').value || '',
+    dubbing: document.getElementById('upDubbing').value || '',
+    pros: document.getElementById('upPros').value || '',
+    cons: document.getElementById('upCons').value || '',
+    schedule: document.getElementById('upSchedule').value || '',
+    related: document.getElementById('upRelated').value ? document.getElementById('upRelated').value.split(',').map(x=>parseInt(x.trim())).filter(x=>!isNaN(x)) : []
+  };
+
+  movies.unshift(m); Storage.set('movies',movies);
+
+  uploadedFiles = { poster: null, video: null };
+  ['poster','video'].forEach(type => {
+    const preview = document.getElementById(type + 'Preview');
+    if(preview) { preview.classList.add('hide'); preview.innerHTML = ''; }
+    const input = document.getElementById(type + 'Input');
+    if(input) {
+      input.value = '';
+      const dt = new DataTransfer();
+      input.files = dt.files;
+    }
+    const url = document.getElementById(type==='poster'?'upPoster':'upVideo');
+    if(url) url.value = '';
+  });
+  e.target.reset();
+  toast('Фильм опубликован!','ok');
+  admTab('movies');
+  renderAdmin();
+}
+
+function delMovie(id){
+  if(!confirm('Удалить этот фильм?')) return;
+  let movies = Storage.get('movies')||[];
+  movies = movies.filter(m=>m.id!==id);
+  Storage.set('movies',movies); renderAdmin(); toast('Фильм удалён','ok');
+}
+
+function admTab(tab){
+  curAdmin = tab;
+  document.querySelectorAll('.admin-menu li').forEach(l=>l.classList.remove('active'));
+  document.getElementById('adm-'+tab).classList.add('active');
+  ['dash','movies','add','users'].forEach(t=>{ document.getElementById('admView-'+t).classList.toggle('hide', t!==tab); });
+  if(tab==='dash'||tab==='movies'||tab==='users') renderAdmin();
+  if(tab==='add'){
+    const sel = document.getElementById('upCat');
+    const cats = Storage.get('cats')||[];
+    if(sel) sel.innerHTML = cats.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  }
+}
+
+// ================== MODALS ==================
+function openModal(type){
+  document.getElementById('modalBg').classList.add('show');
+  document.getElementById('modalLogin').classList.add('hide');
+  document.getElementById('modalRegister').classList.add('hide');
+  document.getElementById(type==='login'?'modalLogin':'modalRegister').classList.remove('hide');
+}
+function switchModal(type){ openModal(type); }
+function closeModal(){ document.getElementById('modalBg').classList.remove('show'); }
+
+// ================== TOASTS ==================
+function toast(msg, type){
+  const t = document.createElement('div');
+  t.className = 'toast ' + (type==='ok'?'ok':'err');
+  t.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">${type==='ok'?'<polyline points="20 6 9 17 4 12"/>':'<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>'}</svg><span class="toast-msg">${msg}</span>`;
+  document.getElementById('toasts').appendChild(t);
+  setTimeout(()=>{ t.style.opacity='0'; t.style.transform='translateY(20px)'; setTimeout(()=>t.remove(),300); }, 3000);
+}
+
+// ================== KEYBOARD ==================
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape'){
+    closeModal();
+    closeSettings();
+    closeConfirm();
+    hideSearchDropdown();
+  }
+});
+
+// ================== INIT ==================
+updateAuth();
+renderHome();
+
+// Setup drag & drop after DOM ready
+setTimeout(() => {
+  setupDragDrop('poster');
+  setupDragDrop('video');
+}, 0);
+</script>
+</body>
+</html>
